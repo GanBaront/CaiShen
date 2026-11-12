@@ -1,0 +1,71 @@
+/* 材神食验室 —— 设计令牌与公共组件（V2 模拟图） */
+:root{
+  --primary:#1F4E3B;
+  --primary-hover:#193F2F;
+  --bg:#F3F6F1;
+  --surface:#FFFFFF;
+  --cream:#FAF8F3;
+  --text:#1F2A24;
+  --text2:#6B7A70;
+  --text3:#9AA79E;
+  --border:#E3E8E2;
+  --chip-bg:#E3EFE5;
+  --chip-text:#2E6B4A;
+  --danger:#D9503F;
+  --danger-bg:#FBECE8;
+  --amber:#B5852A;
+  --amber-bg:#F7EBC8;
+  --success:#3E9A6B;
+  --ph:#DCEAD9;              /* 图片占位斜纹 */
+  --card-radius:16px;
+  --shadow:0 2px 12px rgba(31,78,59,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+.page{width:1440px;margin:0 auto;background:var(--bg);position:relative}
+.wrap{max-width:1296px;margin:0 auto;padding:0 72px}
+
+/* ---------- 顶部导航 ---------- */
+.nav{height:64px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 72px;border-bottom:1px solid #EEF1EC}
+.nav-left{display:flex;align-items:center;gap:34px}
+.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;color:var(--primary)}
+.nav-logo .mark{width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center}
+.nav-menu{display:flex;align-items:center;gap:8px}
+.nav-menu a{padding:7px 14px;border-radius:8px;color:var(--text2);font-size:14px}
+.nav-menu a.active{background:var(--chip-bg);color:var(--chip-text);font-weight:600}
+.nav-right{display:flex;align-items:center;gap:14px}
+.quota{background:var(--amber-bg);color:var(--amber);font-size:13px;padding:6px 14px;border-radius:999px;font-weight:600}
+
+/* ---------- 按钮 ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;cursor:pointer;font-family:inherit;font-size:14px;border-radius:8px;padding:9px 18px;line-height:1.2}
+.btn-primary{background:var(--primary);color:#fff;font-weight:600}
+.btn-outline{background:#fff;color:var(--primary);border:1px solid var(--border);font-weight:600}
+.btn-ghost{background:#fff;color:var(--text2);border:1px solid var(--border)}
+.btn-sm{padding:6px 14px;font-size:13px}
+.btn-block{width:100%}
+
+/* ---------- 卡片 ---------- */
+.card{background:var(--surface);border-radius:var(--card-radius);box-shadow:var(--shadow)}
+.img-ph{background:
+  repeating-linear-gradient(45deg,var(--ph) 0 10px,#E7F1E4 10px 20px);
+  display:flex;align-items:center;justify-content:center;color:#8FAE95;font-size:13px}
+
+/* ---------- 标签 / chip ---------- */
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip-bg);color:var(--chip-text);border-radius:999px;padding:5px 14px;font-size:13px}
+.chip .x{color:#7FA98D;font-size:14px;line-height:1}
+.chip-add{border:1px dashed #C9D6CC;background:#fff;color:var(--text2)}
+.pill-sel{background:var(--chip-bg);color:var(--chip-text)}
+.pill-off{background:#fff;border:1px solid var(--border);color:var(--text2)}
+.tag-amber{background:var(--amber-bg);color:var(--amber);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+.tag-green{background:var(--chip-bg);color:var(--chip-text);border-radius:999px;padding:3px 10px;font-size:12px}
+.tag-red{color:var(--danger);font-size:12px}
+
+/* ---------- 页脚 ---------- */
+.footer{display:flex;align-items:center;justify-content:space-between;padding:34px 72px;color:var(--text2);font-size:13px}
+.footer .links{display:flex;gap:26px}

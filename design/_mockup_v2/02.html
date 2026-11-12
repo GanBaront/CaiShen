@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>02 首页 V2</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  .page{height:2041px;display:flex;flex-direction:column}
+  main{flex:1}
+  .logo-mark{width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+
+  /* Hero */
+  .hero{max-width:1296px;margin:0 auto;padding:52px 72px 0;display:grid;grid-template-columns:1fr 660px;gap:56px;align-items:start}
+  .hero .badge{display:inline-block;background:var(--chip-bg);color:var(--chip-text);font-size:13px;border-radius:999px;padding:5px 14px;margin-bottom:20px}
+  .hero h1{font-size:44px;line-height:1.22;margin:0 0 20px;font-weight:700}
+  .hero .lead{color:var(--text2);font-size:15px;margin:0 0 26px;max-width:430px}
+  .hero .points{display:flex;flex-direction:column;gap:12px}
+  .hero .point{display:flex;align-items:center;gap:10px;color:var(--text2);font-size:14px}
+  .hero .point .ok{width:18px;height:18px;border-radius:50%;background:var(--chip-bg);color:var(--chip-text);display:flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+
+  /* 食材输入卡片 */
+  .tool{background:#fff;border-radius:20px;box-shadow:0 6px 24px rgba(31,78,59,.08);padding:22px 22px 18px}
+  .tool-tabs{display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .tool-tabs div{padding:9px 14px;font-size:13px;color:var(--text2);position:relative}
+  .tool-tabs div.on{color:var(--chip-text);font-weight:600}
+  .tool-tabs div.on:after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:var(--primary);border-radius:2px}
+  .tool label{font-size:13px;color:var(--text2);display:block;margin:14px 0 8px}
+  .row-input{display:flex;gap:10px}
+  .row-input input{flex:1;height:42px;border:1px solid var(--border);border-radius:8px;padding:0 12px;font-family:inherit;font-size:13px;outline:none}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+  .common{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text2)}
+  .dashed{border:1px dashed #C9D6CC;border-radius:10px;background:#FBFDFA;padding:14px;text-align:center}
+  .dashed .t{color:var(--text);font-size:13px;font-weight:600}
+  .dashed .d{color:var(--text3);font-size:12px;margin-top:3px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .prefs{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:end}
+  .select{height:42px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 12px;display:flex;align-items:center;justify-content:space-between;color:var(--text);font-size:13px}
+  .tool-foot{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:1px solid #F0F3EE}
+  .tool-foot .free{font-size:12px;color:var(--text3)}
+  .tool-foot .free b{color:var(--amber)}
+
+  /* 分节标题 */
+  .sec{max-width:1296px;margin:0 auto;padding:0 72px}
+  .sec-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 20px}
+  .sec-head h2{font-size:24px;margin:0;font-weight:700}
+  .sec-head a{color:var(--text2);font-size:13px}
+
+  /* 四步 */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .step{background:#fff;border-radius:16px;padding:28px;box-shadow:var(--shadow)}
+  .step .n{font-size:30px;font-weight:700;color:#B9CDBF;margin-bottom:14px}
+  .step h3{font-size:16px;margin:0 0 8px}
+  .step p{color:var(--text2);font-size:13px;margin:0}
+
+  /* 今日推荐 */
+  .recs{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .rec{background:#fff;border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+  .rec .thumb{height:172px;border-radius:12px;margin:8px;position:relative}
+  .rec .body{padding:6px 14px 16px}
+  .rec h3{font-size:15px;margin:0 0 6px}
+  .rec .meta{color:var(--text3);font-size:12px}
+  .match{position:absolute;left:10px;top:10px;background:var(--chip-bg);color:var(--chip-text);font-size:11px;border-radius:6px;padding:3px 8px;font-weight:600}
+
+  /* 会员条 */
+  .member{max-width:1296px;margin:0 auto;padding:0 72px}
+  .member .inner{background:var(--primary);border-radius:20px;padding:34px 36px;display:flex;align-items:center;justify-content:space-between;color:#fff}
+  .member .inner h3{font-size:20px;margin:12px 0 8px;font-weight:700}
+  .member .inner p{margin:0;color:#CFE0D6;font-size:13px}
+  .member .btn{background:#fff;color:var(--primary)}
+</style></head>
+<body>
+<div class="page">
+  <!-- 导航 -->
+  <div class="nav">
+    <div class="nav-left">
+      <div class="nav-logo"><span class="logo-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 4c0 8-4 13-12 14 0-8 4-13 12-14z" fill="#fff"/><path d="M4 20c2-6 5-9 10-11" stroke="#1F4E3B" stroke-width="1.8" stroke-linecap="round"/></svg></span>材神食验室</div>
+      <div class="nav-menu"><a class="active">首页</a><a>菜谱推荐</a><a>购物清单</a><a>会员</a><a>个人中心</a></div>
+    </div>
+    <div class="nav-right"><span class="quota">今日免费 3/5 次</span><button class="btn btn-outline btn-sm">登录/注册</button></div>
+  </div>
+
+  <main>
+    <!-- Hero -->
+    <div class="hero">
+      <div>
+        <span class="badge">AI 智能食验助手</span>
+        <h1>让每一份食材<br>都不被辜负</h1>
+        <p class="lead">告诉我冰箱里有什么，AI 马上推荐今晚能做的菜，还能避开你的忌口，缺什么料也有办法。</p>
+        <div class="points">
+          <div class="point"><span class="ok">✓</span>文字、语音、图片，三种方式录入食材</div>
+          <div class="point"><span class="ok">✓</span>忌口、过敏源自动过滤，吃得放心</div>
+          <div class="point"><span class="ok">✓</span>缺料给替代方案，也能一键买菜</div>
+        </div>
+      </div>
+
+      <div class="tool">
+        <div class="tool-tabs"><div class="on">文字输入</div><div>上传图片</div><div>语音输入</div></div>
+        <label>你有哪些食材？</label>
+        <div class="row-input"><input placeholder="例如：番茄、鸡蛋，用顿号或逗号分隔"><button class="btn btn-primary">添加</button></div>
+        <div class="chips">
+          <span class="chip">番茄 <span class="x">×</span></span>
+          <span class="chip">鸡蛋 <span class="x">×</span></span>
+          <span class="chip">青椒 <span class="x">×</span></span>
+          <span class="chip">土豆 <span class="x">×</span></span>
+        </div>
+        <div class="common">常用
+          <span class="chip chip-add">+ 洋葱</span><span class="chip chip-add">+ 豆腐</span><span class="chip chip-add">+ 胡萝卜</span><span class="chip chip-add">+ 五花肉</span>
+        </div>
+        <div class="two">
+          <div class="dashed">
+            <div class="t">上传食材图片</div>
+            <div class="d">AI 自动识别，识别后可修改</div>
+          </div>
+          <div class="dashed">
+            <div class="t">按住说话</div>
+            <div class="d">说出手头的食材</div>
+          </div>
+        </div>
+        <label>口味偏好</label>
+        <div class="chips" style="margin-top:0">
+          <span class="chip pill-off" style="background:#fff">酸</span><span class="chip pill-off" style="background:#fff">甜</span>
+          <span class="chip pill-off" style="background:#fff">辣</span><span class="chip pill-off" style="background:#fff">咸</span>
+          <span class="chip pill-sel">清淡</span>
+        </div>
+        <div class="prefs" style="margin-top:14px">
+          <div><label style="margin-top:0">饮食方式</label><div class="select">不限 <span>▾</span></div></div>
+          <div><label style="margin-top:0">忌口 / 过敏源</label>
+            <div class="chips" style="margin-top:0">
+              <span class="chip">花生 <span class="x">×</span></span><span class="chip">香菜 <span class="x">×</span></span><span class="chip chip-add">+ 添加</span>
+            </div>
+          </div>
+        </div>
+        <div class="tool-foot">
+          <span class="free">今日免费次数 <b>3/5</b> · 开通会员不限次</span>
+          <button class="btn btn-primary">生成菜谱 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 四步 -->
+    <div class="sec" style="margin-top:140px">
+      <div class="sec-head"><h2>从食材到餐桌，一站走完</h2></div>
+      <div class="steps">
+        <div class="step"><div class="n">01</div><h3>识别食材</h3><p>文字、语音、图片，任选一种，识别结果可修改。</p></div>
+        <div class="step"><div class="n">02</div><h3>推荐菜谱</h3><p>按匹配度排序，并过滤你的忌口与过敏源。</p></div>
+        <div class="step"><div class="n">03</div><h3>分步烹饪</h3><p>图文教学，带步骤指引与关键提示。</p></div>
+        <div class="step"><div class="n">04</div><h3>采购与反馈</h3><p>缺料生成清单、多商家比价；餐后评分优化推荐。</p></div>
+      </div>
+    </div>
+
+    <!-- 今日推荐 -->
+    <div class="sec" style="margin-top:92px">
+      <div class="sec-head"><h2>今日推荐</h2><a>查看全部 →</a></div>
+      <div class="recs">
+        <div class="rec"><div class="thumb img-ph"><span class="match">匹配 100%</span>菜品图</div><div class="body"><h3>番茄炒蛋</h3><div class="meta">15 分钟 · 简单</div></div></div>
+        <div class="rec"><div class="thumb img-ph"><span class="match">匹配 100%</span>菜品图</div><div class="body"><h3>青椒土豆丝</h3><div class="meta">20 分钟 · 简单</div></div></div>
+        <div class="rec"><div class="thumb img-ph"><span class="match">匹配 100%</span>菜品图</div><div class="body"><h3>番茄蛋花汤</h3><div class="meta">15 分钟 · 简单</div></div></div>
+        <div class="rec"><div class="thumb img-ph"><span class="match">匹配 90%</span>菜品图</div><div class="body"><h3>土豆煎蛋饼</h3><div class="meta">25 分钟 · 中等</div></div></div>
+      </div>
+    </div>
+
+    <!-- 会员条 -->
+    <div class="member" style="margin-top:88px">
+      <div class="inner">
+        <div>
+          <span class="tag-amber">会员专享</span>
+          <h3>让 AI 为你创作一道新菜</h3>
+          <p>基础功能每天免费 5 次。会员 ¥19/月，解锁 AI 生成的新颖菜谱；也可单次 ¥2.99 体验。</p>
+        </div>
+        <button class="btn">了解会员</button>
+      </div>
+    </div>
+  </main>
+
+  <div class="footer">
+    <div>©材神食验室 · 让每一份食材都不被辜负</div>
+    <div class="links"><a>意见反馈</a><a>会员说明</a><a>商家/管理入口</a></div>
+  </div>
+</div>
+</body></html>

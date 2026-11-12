@@ -1,0 +1,1142 @@
+-- =====================================================================
+--  材神食验室 (CaiShen Food Lab) · 一键建库建表脚本
+--  MySQL 8.x / utf8mb4
+--  执行:  mysql -u root -p --default-character-set=utf8mb4 < 一键建库建表sql.txt
+--  默认账号: 管理员 admin / admin123 ; 演示用户 demo / 123456
+-- =====================================================================
+
+DROP DATABASE IF EXISTS caishen_food_lab;
+CREATE DATABASE caishen_food_lab DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE caishen_food_lab;
+
+-- =====================================================================
+-- 一、用户与偏好
+-- =====================================================================
+CREATE TABLE t_user (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  account       VARCHAR(64)  NOT NULL COMMENT '登录账号',
+  password      VARCHAR(128) NOT NULL COMMENT '密码(BCrypt)',
+  nickname      VARCHAR(64)      NULL COMMENT '昵称',
+  phone         VARCHAR(20)      NULL COMMENT '手机号',
+  avatar        VARCHAR(255)     NULL COMMENT '头像',
+  status        TINYINT      NOT NULL DEFAULT 1 COMMENT '1正常 0停用',
+  create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_account (account)
+) ENGINE=InnoDB COMMENT='用户';
+
+CREATE TABLE t_user_preference (
+  id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id          BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+  tastes           VARCHAR(128) NOT NULL DEFAULT '' COMMENT '口味偏好(多选,逗号分隔:酸,甜,辣,咸,清淡)',
+  diet_type        VARCHAR(16)  NOT NULL DEFAULT '不限' COMMENT '饮食方式:不限/素食/生酮/低卡',
+  default_servings INT          NOT NULL DEFAULT 2 COMMENT '默认用餐人数',
+  update_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_pref_user (user_id)
+) ENGINE=InnoDB COMMENT='用户饮食偏好';
+
+CREATE TABLE t_user_avoid_item (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     BIGINT UNSIGNED NOT NULL,
+  type        TINYINT NOT NULL COMMENT '1忌口食材 2过敏源',
+  name        VARCHAR(64) NOT NULL,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_avoid_user (user_id)
+) ENGINE=InnoDB COMMENT='用户忌口/过敏源';
+
+CREATE TABLE t_user_ingredient (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id       BIGINT UNSIGNED NOT NULL,
+  ingredient_id BIGINT UNSIGNED     NULL COMMENT '关联食材库',
+  name          VARCHAR(64) NOT NULL,
+  quantity      VARCHAR(32)     NULL,
+  unit          VARCHAR(16)     NULL,
+  create_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_ui_user (user_id)
+) ENGINE=InnoDB COMMENT='我的食材篮';
+
+CREATE TABLE t_admin_user (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username        VARCHAR(64)  NOT NULL,
+  password        VARCHAR(128) NOT NULL COMMENT '密码(BCrypt)',
+  real_name       VARCHAR(64)      NULL,
+  status          TINYINT      NOT NULL DEFAULT 1,
+  last_login_time DATETIME         NULL,
+  create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_admin_username (username)
+) ENGINE=InnoDB COMMENT='后台管理员';
+
+-- =====================================================================
+-- 二、食材与营养
+-- =====================================================================
+CREATE TABLE t_ingredient (
+  id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name         VARCHAR(64) NOT NULL COMMENT '食材名',
+  alias        VARCHAR(128)    NULL COMMENT '别名(逗号分隔)',
+  category     VARCHAR(32) NOT NULL DEFAULT '其他' COMMENT '分类:蔬菜/肉类/蛋类/调味/主食/其他',
+  default_unit VARCHAR(16) NOT NULL DEFAULT '克' COMMENT '默认单位',
+  image        VARCHAR(255)    NULL,
+  status       TINYINT     NOT NULL DEFAULT 1,
+  create_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_ing_name (name)
+) ENGINE=InnoDB COMMENT='食材库';
+
+CREATE TABLE t_allergen_tag (
+  id      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name    VARCHAR(64) NOT NULL,
+  remark  VARCHAR(255)    NULL,
+  status  TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB COMMENT='过敏源标签';
+
+CREATE TABLE t_ingredient_allergen (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ingredient_id   BIGINT UNSIGNED NOT NULL,
+  allergen_tag_id BIGINT UNSIGNED NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_ing_allergen (ingredient_id, allergen_tag_id)
+) ENGINE=InnoDB COMMENT='食材-过敏源映射';
+
+CREATE TABLE t_ingredient_nutrition (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ingredient_id BIGINT UNSIGNED NOT NULL,
+  calories      DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '热量 kcal',
+  protein       DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '蛋白质 g',
+  fat           DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '脂肪 g',
+  carbs         DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '碳水 g',
+  unit_desc     VARCHAR(32) NOT NULL DEFAULT '每100g',
+  update_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_nutri_ing (ingredient_id)
+) ENGINE=InnoDB COMMENT='营养数据';
+
+-- =====================================================================
+-- 三、菜谱
+-- =====================================================================
+CREATE TABLE t_recipe (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name        VARCHAR(64) NOT NULL,
+  cover_image VARCHAR(255)    NULL,
+  cuisine     VARCHAR(16) NOT NULL DEFAULT '家常菜' COMMENT '菜系:家常菜/创意菜/轻食',
+  difficulty  VARCHAR(16) NOT NULL DEFAULT '简单' COMMENT '难度:简单/中等/较难',
+  taste       VARCHAR(32) NOT NULL DEFAULT '清淡' COMMENT '口味',
+  cook_time   INT         NOT NULL DEFAULT 15 COMMENT '耗时(分钟)',
+  description VARCHAR(255)    NULL,
+  servings    INT         NOT NULL DEFAULT 2 COMMENT '份量(人份)',
+  source      VARCHAR(16) NOT NULL DEFAULT '人工' COMMENT '来源:人工/AI生成',
+  status      VARCHAR(16) NOT NULL DEFAULT '已上线' COMMENT '状态:已上线/待审核/已下架',
+  calories    DECIMAL(8,2) NOT NULL DEFAULT 0 COMMENT '每份热量 kcal',
+  protein     DECIMAL(8,2) NOT NULL DEFAULT 0,
+  fat         DECIMAL(8,2) NOT NULL DEFAULT 0,
+  carbs       DECIMAL(8,2) NOT NULL DEFAULT 0,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_recipe_status (status)
+) ENGINE=InnoDB COMMENT='菜谱';
+
+CREATE TABLE t_recipe_ingredient (
+  id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  recipe_id    BIGINT UNSIGNED NOT NULL,
+  ingredient_id BIGINT UNSIGNED    NULL,
+  name         VARCHAR(64) NOT NULL,
+  amount       VARCHAR(32)     NULL COMMENT '数量(如 2 / 少许)',
+  unit         VARCHAR(16)     NULL COMMENT '单位',
+  is_main      TINYINT NOT NULL DEFAULT 0 COMMENT '1主料',
+  is_required  TINYINT NOT NULL DEFAULT 1 COMMENT '1必备 0可替代',
+  sort         INT     NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_ri_recipe (recipe_id)
+) ENGINE=InnoDB COMMENT='菜谱所需食材';
+
+CREATE TABLE t_recipe_step (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  recipe_id   BIGINT UNSIGNED NOT NULL,
+  step_no     INT NOT NULL,
+  title       VARCHAR(64)  NOT NULL,
+  description VARCHAR(500)     NULL,
+  image_url   VARCHAR(255)     NULL COMMENT '步骤示意图',
+  tips        VARCHAR(255)     NULL COMMENT '关键提示',
+  sort        INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_step_recipe (recipe_id)
+) ENGINE=InnoDB COMMENT='分步教学(图文)';
+
+CREATE TABLE t_ingredient_substitute (
+  id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  recipe_ingredient_id BIGINT UNSIGNED NOT NULL,
+  ingredient_id       BIGINT UNSIGNED    NULL,
+  name                VARCHAR(64) NOT NULL,
+  ratio_desc          VARCHAR(128)    NULL COMMENT '替代比例',
+  note                VARCHAR(255)    NULL COMMENT '口味衔接',
+  PRIMARY KEY (id),
+  KEY idx_sub_ri (recipe_ingredient_id)
+) ENGINE=InnoDB COMMENT='食材替代';
+
+CREATE TABLE t_recipe_favorite (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     BIGINT UNSIGNED NOT NULL,
+  recipe_id   BIGINT UNSIGNED NOT NULL,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_fav (user_id, recipe_id)
+) ENGINE=InnoDB COMMENT='菜谱收藏';
+
+CREATE TABLE t_recipe_review (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     BIGINT UNSIGNED NOT NULL,
+  recipe_id   BIGINT UNSIGNED NOT NULL,
+  rating      TINYINT NOT NULL DEFAULT 5 COMMENT '1-5星',
+  tags        VARCHAR(128) NULL COMMENT '评价标签(选填)',
+  content     VARCHAR(500) NULL,
+  status      VARCHAR(16) NOT NULL DEFAULT '待审核' COMMENT '待审核/已通过/已驳回',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_review_status (status)
+) ENGINE=InnoDB COMMENT='菜谱评价';
+
+CREATE TABLE t_recipe_history (
+  id        BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id   BIGINT UNSIGNED NOT NULL,
+  recipe_id BIGINT UNSIGNED NOT NULL,
+  view_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_hist_user (user_id)
+) ENGINE=InnoDB COMMENT='浏览历史';
+
+-- =====================================================================
+-- 四、购物清单与订单
+-- =====================================================================
+CREATE TABLE t_shopping_list (
+  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id        BIGINT UNSIGNED NOT NULL,
+  name           VARCHAR(64) NOT NULL DEFAULT '我的购物清单',
+  source_recipes VARCHAR(255) NULL COMMENT '来源菜谱(逗号分隔)',
+  create_time    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_sl_user (user_id)
+) ENGINE=InnoDB COMMENT='购物清单';
+
+CREATE TABLE t_shopping_list_item (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  list_id       BIGINT UNSIGNED NOT NULL,
+  ingredient_id BIGINT UNSIGNED    NULL,
+  name          VARCHAR(64) NOT NULL,
+  amount        VARCHAR(32) NULL,
+  unit          VARCHAR(16) NULL,
+  category      VARCHAR(32) NOT NULL DEFAULT '其他' COMMENT '分组:调味/蔬菜/肉类/其他',
+  checked       TINYINT NOT NULL DEFAULT 0 COMMENT '1已购',
+  recipe_source VARCHAR(64) NULL COMMENT '来自哪个菜谱',
+  sort          INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_sli_list (list_id)
+) ENGINE=InnoDB COMMENT='购物清单项';
+
+CREATE TABLE t_merchant (
+  id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name             VARCHAR(64) NOT NULL,
+  logo             VARCHAR(255)    NULL,
+  rating           INT     NOT NULL DEFAULT 95 COMMENT '好评率(%)',
+  distance_km      DECIMAL(4,1) NOT NULL DEFAULT 1.0,
+  delivery_minutes INT     NOT NULL DEFAULT 30 COMMENT '约送达(分钟)',
+  tags             VARCHAR(64) NULL COMMENT '标签:综合推荐/价格最低',
+  stock_status     VARCHAR(16) NOT NULL DEFAULT '库存充足' COMMENT '库存充足/库存紧张',
+  audit_status     VARCHAR(16) NOT NULL DEFAULT '已通过' COMMENT '待审核/已通过/已驳回',
+  status           TINYINT NOT NULL DEFAULT 1,
+  create_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_merchant_audit (audit_status)
+) ENGINE=InnoDB COMMENT='商家';
+
+CREATE TABLE t_merchant_product (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  merchant_id   BIGINT UNSIGNED NOT NULL,
+  ingredient_id BIGINT UNSIGNED    NULL,
+  name          VARCHAR(64) NOT NULL,
+  price         DECIMAL(8,2) NOT NULL DEFAULT 0,
+  sell_unit     VARCHAR(32) NOT NULL DEFAULT '1 份' COMMENT '售卖规格（购买单位）',
+  stock         INT NOT NULL DEFAULT 100,
+  audit_status  VARCHAR(16) NOT NULL DEFAULT '已通过' COMMENT '商品上架审核',
+  status        TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  KEY idx_mp_merchant (merchant_id),
+  KEY idx_mp_audit (audit_status)
+) ENGINE=InnoDB COMMENT='商家商品报价';
+
+CREATE TABLE t_orders (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_no      VARCHAR(32) NOT NULL,
+  user_id       BIGINT UNSIGNED NOT NULL,
+  merchant_id   BIGINT UNSIGNED    NULL,
+  merchant_name VARCHAR(64) NULL,
+  amount        DECIMAL(8,2) NOT NULL DEFAULT 0,
+  status        VARCHAR(16) NOT NULL DEFAULT '待支付' COMMENT '待支付/已支付/配送中/已完成',
+  delivery_desc VARCHAR(128) NULL,
+  create_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_order_no (order_no),
+  KEY idx_order_user (user_id),
+  KEY idx_order_status (status)
+) ENGINE=InnoDB COMMENT='订单';
+
+CREATE TABLE t_order_item (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id      BIGINT UNSIGNED NOT NULL,
+  ingredient_id BIGINT UNSIGNED    NULL,
+  name          VARCHAR(64) NOT NULL,
+  amount        VARCHAR(32) NULL,
+  unit          VARCHAR(16) NULL,
+  price         DECIMAL(8,2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_oi_order (order_id)
+) ENGINE=InnoDB COMMENT='订单明细';
+
+CREATE TABLE t_order_review (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id    BIGINT UNSIGNED NOT NULL,
+  user_id     BIGINT UNSIGNED NOT NULL,
+  rating      TINYINT NOT NULL DEFAULT 5,
+  content     VARCHAR(500) NULL,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_or_order (order_id)
+) ENGINE=InnoDB COMMENT='订单评价';
+
+-- =====================================================================
+-- 五、会员 / AI / 反馈 / 系统
+-- =====================================================================
+CREATE TABLE t_membership (
+  id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id    BIGINT UNSIGNED NOT NULL,
+  plan_type  VARCHAR(16) NOT NULL DEFAULT '免费' COMMENT '免费/会员',
+  start_time DATETIME     NULL,
+  end_time   DATETIME     NULL,
+  status     TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (id),
+  KEY idx_ms_user (user_id)
+) ENGINE=InnoDB COMMENT='会员状态';
+
+CREATE TABLE t_billing_record (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     BIGINT UNSIGNED NOT NULL,
+  type        VARCHAR(32) NOT NULL COMMENT '单次AI菜谱/会员·1个月',
+  amount      DECIMAL(8,2) NOT NULL DEFAULT 0,
+  pay_method  VARCHAR(16) NOT NULL DEFAULT '模拟支付',
+  status      VARCHAR(16) NOT NULL DEFAULT '待支付' COMMENT '已支付/待支付',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_br_user (user_id)
+) ENGINE=InnoDB COMMENT='订阅与购买记录';
+
+CREATE TABLE t_ai_generation_record (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id           BIGINT UNSIGNED NOT NULL,
+  source            VARCHAR(16) NOT NULL DEFAULT '会员AI新菜谱' COMMENT '首页生成/会员AI新菜谱',
+  input_ingredients VARCHAR(255) NULL COMMENT '输入食材',
+  recipe_id         BIGINT UNSIGNED NULL COMMENT '生成的菜谱',
+  create_time       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_ai_time (create_time)
+) ENGINE=InnoDB COMMENT='AI 菜谱生成记录';
+
+CREATE TABLE t_feedback (
+  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id     BIGINT UNSIGNED    NULL,
+  content     VARCHAR(500) NOT NULL,
+  contact     VARCHAR(64)      NULL,
+  status      VARCHAR(16) NOT NULL DEFAULT '待处理' COMMENT '待处理/已处理',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_fb_status (status)
+) ENGINE=InnoDB COMMENT='意见反馈';
+
+CREATE TABLE t_sys_config (
+  id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  config_key   VARCHAR(64)  NOT NULL,
+  config_value VARCHAR(255) NOT NULL,
+  remark       VARCHAR(128)     NULL,
+  update_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_cfg_key (config_key)
+) ENGINE=InnoDB COMMENT='系统配置';
+
+-- =====================================================================
+-- 六、初始化数据
+-- =====================================================================
+
+-- 系统配置（可配置的系统参数）
+INSERT INTO t_sys_config (config_key, config_value, remark) VALUES
+('free.daily.limit',        '5',      '每日免费生成次数'),
+('member.month.price',      '19',     '会员月费(元)'),
+('ai.single.price',         '2.99',   '单次 AI 菜谱费用(元)'),
+('ai.provider',             'openai-compatible', '大模型服务商'),
+('ai.base-url',             'https://api.deepseek.com/v1', '文本模型接口地址(OpenAI兼容)'),
+('ai.model',                'deepseek-chat', '文本模型名称(菜谱推荐排序/AI创作)'),
+('ai.api-key',              '',       '文本模型密钥(环境变量 AI_API_KEY 优先;留空即可)'),
+('ai.vision-base-url',      'https://open.bigmodel.cn/api/paas/v4', '视觉模型接口地址(默认智谱GLM;留空复用ai.base-url)'),
+('ai.vision-model',         'glm-4v-flash', '视觉模型名称(菜品/食材图片识别)'),
+('ai.vision-api-key',       '',       '视觉模型密钥(环境变量 AI_VISION_API_KEY 优先;留空复用文本Key)'),
+('ai.vision-image-mode',    'auto',   '视觉模型图片入参格式 auto/data-uri/raw-base64'),
+('third.meituan.url',       'https://i.meituan.com/',    '第三方生鲜(美团买菜)跳转地址'),
+('third.duoduo.url',        'https://mobile.yangkeduo.com/', '第三方生鲜(多多买菜)跳转地址');
+
+-- 管理员：admin / admin123
+INSERT INTO t_admin_user (username, password, real_name, status) VALUES
+('admin', '$2b$10$p0aaUehUn4463mJ26fw4ZOze/XIbfinJc4kDBocxt.jkM6r.rrunC', '超级管理员', 1);
+
+-- 演示用户：demo / 123456（+ 若干用户，用于后台统计）
+INSERT INTO t_user (id, account, password, nickname, phone, status) VALUES
+(1, 'demo', '$2b$10$Y2MxYJY4tiQklLjOAgzWvenuBTxY6ikrERB8DE5KC.jj90NSBHaju', '[昵称]', '13800000000', 1),
+(2, 'user002', '$2b$10$Y2MxYJY4tiQklLjOAgzWvenuBTxY6ikrERB8DE5KC.jj90NSBHaju', '厨房小白', NULL, 1),
+(3, 'user003', '$2b$10$Y2MxYJY4tiQklLjOAgzWvenuBTxY6ikrERB8DE5KC.jj90NSBHaju', '爱做菜',   NULL, 1),
+(4, 'user004', '$2b$10$Y2MxYJY4tiQklLjOAgzWvenuBTxY6ikrERB8DE5KC.jj90NSBHaju', '减脂餐',   NULL, 1),
+(5, 'user005', '$2b$10$Y2MxYJY4tiQklLjOAgzWvenuBTxY6ikrERB8DE5KC.jj90NSBHaju', '一日三餐', NULL, 0);
+
+INSERT INTO t_user_preference (user_id, tastes, diet_type, default_servings) VALUES
+(1, '清淡', '不限', 2),
+(2, '甜,辣', '不限', 2),
+(3, '咸', '素食', 3);
+
+INSERT INTO t_user_avoid_item (user_id, type, name) VALUES
+(1, 1, '香菜'), (1, 1, '内脏'), (1, 2, '花生'),
+(2, 2, '花生'), (3, 1, '香菜');
+
+INSERT INTO t_user_ingredient (user_id, ingredient_id, name, quantity, unit) VALUES
+(1, 1, '番茄', '2', '个'), (1, 2, '鸡蛋', '3', '个'),
+(1, 7, '青椒', '1', '个'), (1, 8, '土豆', '2', '个');
+
+INSERT INTO t_membership (user_id, plan_type, start_time, end_time, status) VALUES
+(3, '会员', DATE_SUB(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 20 DAY), 1),
+(2, '会员', DATE_SUB(NOW(), INTERVAL 3 DAY),  DATE_ADD(NOW(), INTERVAL 27 DAY), 1);
+
+INSERT INTO t_billing_record (user_id, type, amount, pay_method, status, create_time) VALUES
+(1, '单次AI菜谱', 2.99, '模拟支付', '已支付', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(1, '会员·1个月', 19.00, '模拟支付', '待支付', NOW());
+
+-- 过敏源标签
+INSERT INTO t_allergen_tag (id, name, remark) VALUES
+(1, '花生', '花生及其制品'),
+(2, '坚果', '坚果类'),
+(3, '乳制品', '牛奶及奶制品'),
+(4, '蛋类', '鸡蛋及蛋制品'),
+(5, '海鲜', '虾蟹贝类'),
+(6, '麸质', '小麦及含麸质谷物');
+
+-- 食材库
+INSERT INTO t_ingredient (id, name, alias, category, default_unit) VALUES
+(1,  '番茄',   '西红柿',   '蔬菜',   '个'),
+(2,  '鸡蛋',   '蛋',       '蛋类',   '个'),
+(3,  '盐',     '食盐',     '调味',   '少许'),
+(4,  '食用油', '植物油',   '调味',   '汤匙'),
+(5,  '白糖',   '砂糖',     '调味',   '茶匙'),
+(6,  '葱花',   '',         '蔬菜',   '少许'),
+(7,  '青椒',   '柿子椒',   '蔬菜',   '个'),
+(8,  '土豆',   '马铃薯',   '蔬菜',   '个'),
+(9,  '花生',   '',         '其他',   '克'),
+(10, '香菜',   '芫荽',     '蔬菜',   '克'),
+(11, '白醋',   '',         '调味',   '汤匙'),
+(12, '干辣椒', '',         '调味',   '少许'),
+(13, '葱',     '小葱',     '蔬菜',   '根'),
+(14, '蜂蜜',   '',         '调味',   '茶匙'),
+(15, '番茄酱', '',         '调味',   '汤匙'),
+(16, '面粉',   '小麦粉',   '主食',   '克'),
+(17, '莲花',   '莲瓣',     '其他',   '克'),
+(18, '生油',   '生抽',     '调味',   '汤匙'),
+(19, '洋葱',   '',         '蔬菜',   '个'),
+(20, '豆腐',   '',         '其他',   '块'),
+(21, '胡萝卜', '',         '蔬菜',   '根'),
+(22, '五花肉', '',         '肉类',   '克'),
+(23, '鸡胸肉', '',         '肉类',   '克'),
+(24, '生抽',   '酱油',     '调味',   '汤匙'),
+(25, '牛腩',   '',         '肉类',   '克'),
+(26, '大米',   '米',       '主食',   '克');
+
+INSERT INTO t_ingredient_allergen (ingredient_id, allergen_tag_id) VALUES
+(9, 1), (16, 6), (2, 4);
+
+INSERT INTO t_ingredient_nutrition (ingredient_id, calories, protein, fat, carbs) VALUES
+(1, 20, 0.9, 0.2, 4.0),
+(2, 144, 13.3, 8.8, 2.8),
+(7, 22, 1.0, 0.2, 5.4),
+(8, 77, 2.0, 0.2, 17.2),
+(23, 133, 24.6, 2.5, 0.6);
+
+-- 菜谱
+INSERT INTO t_recipe (id, name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs) VALUES
+(1,  '番茄炒蛋',     '家常菜', '简单', '清淡',     15, '酸甜开胃的国民家常菜，用手边的番茄和鸡蛋 15 分钟搞定。', 2, '人工', '已上线', 210, 14, 15, 6),
+(2,  '青椒土豆丝',   '家常菜', '简单', '清淡',     20, '爽脆下饭，土豆丝要泡水去淀粉再炒才不粘锅。',           2, '人工', '已上线', 160, 4, 6, 24),
+(3,  '番茄蛋花汤',   '家常菜', '简单', '清淡',     15, '酸甜暖胃的一碗汤，蛋花要沿着锅边缓缓淋入。',           2, '人工', '已上线', 120, 8, 6, 9),
+(4,  '土豆煎蛋饼',   '家常菜', '中等', '咸',       25, '土豆擦丝拌蛋液煎成饼，外脆里糯，早餐首选。',           2, '人工', '已上线', 260, 12, 14, 22),
+(5,  '青椒炒蛋',     '家常菜', '简单', '清淡',     12, '青椒微辣配嫩蛋，快手下饭。',                           2, '人工', '已上线', 190, 13, 13, 5),
+(6,  '茄汁土豆焖蛋', '家常菜', '中等', '酸甜',     30, '番茄土豆焖出浓汁，再卧入鸡蛋焖至入味。',               2, '人工', '已上线', 230, 12, 12, 18),
+(7,  '莲花蒸蛋',     '家常菜', '中等', '清淡',     20, '莲花瓣垫底蒸蛋，清香解腻。',                           2, '人工', '已上线', 150, 12, 9, 5),
+(8,  '家常蛋饼',     '家常菜', '简单', '咸',       15, '面粉加蛋液摊成薄饼，卷上小菜即可。',                   2, '人工', '已上线', 240, 12, 10, 24),
+(9,  '葱油拌面',     '家常菜', '简单', '咸',       15, '生油熬葱油拌面，香气扑鼻。',                           2, '人工', '已上线', 320, 9, 12, 45),
+(10, '番茄牛腩',     '家常菜', '较难', '酸甜',     60, '牛腩炖至软烂，番茄熬出浓稠汤汁。',                     4, '人工', '已上线', 380, 30, 22, 12),
+(11, '番茄土豆炖鸡', '家常菜', '中等', '酸甜',     40, '番茄土豆与鸡块同炖，汤汁酸甜浓稠。',                   4, '人工', '已上线', 300, 26, 14, 16),
+(12, '醋溜土豆丝',   '家常菜', '简单', '酸',       18, '醋香爽脆，起锅前放醋最好吃。',                         2, '人工', '已上线', 150, 3, 5, 24),
+(13, '茄汁土豆蛋卷', '创意菜', '中等', '清淡微酸', 35, '土豆泥拌蛋液成薄饼，卷入番茄青椒馅，切段摆盘。',       2, 'AI生成', '待审核', 220, 13, 12, 20),
+(14, '低卡鸡胸沙拉', '轻食',   '简单', '清淡',     20, '鸡胸肉水煮撕条，配蔬菜与油醋汁。',                     2, '人工', '已下架', 180, 28, 6, 8);
+
+-- 菜谱所需食材
+INSERT INTO t_recipe_ingredient (id, recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(1, 1, 1,  '番茄',   '2',    '个',   1, 1, 1),
+(2, 1, 2,  '鸡蛋',   '3',    '个',   1, 1, 2),
+(3, 1, 3,  '盐',     '少许', '',     0, 1, 3),
+(4, 1, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(5, 1, 5,  '白糖',   '1',    '茶匙', 0, 0, 5),
+(6, 1, 6,  '葱花',   '少许', '',     0, 0, 6),
+(7, 2, 8,  '土豆',   '2',    '个',   1, 1, 1),
+(8, 2, 7,  '青椒',   '1',    '个',   1, 1, 2),
+(9, 2, 11, '白醋',   '1',    '汤匙', 0, 1, 3),
+(10, 3, 1, '番茄',   '2',    '个',   1, 1, 1),
+(11, 3, 2, '鸡蛋',   '2',    '个',   1, 1, 2),
+(12, 4, 8, '土豆',   '2',    '个',   1, 1, 1),
+(13, 4, 2, '鸡蛋',   '2',    '个',   1, 1, 2),
+(14, 4, 16,'面粉',   '50',   '克',   1, 1, 3),
+(15, 5, 7, '青椒',   '2',    '个',   1, 1, 1),
+(16, 5, 2, '鸡蛋',   '3',    '个',   1, 1, 2),
+(17, 6, 1, '番茄',   '2',    '个',   1, 1, 1),
+(18, 6, 8, '土豆',   '1',    '个',   1, 1, 2),
+(19, 6, 2, '鸡蛋',   '2',    '个',   1, 1, 3),
+(20, 7, 17,'莲花',   '30',   '克',   1, 1, 1),
+(21, 7, 2, '鸡蛋',   '3',    '个',   1, 1, 2),
+(22, 8, 16,'面粉',   '150',  '克',   1, 1, 1),
+(23, 8, 2, '鸡蛋',   '2',    '个',   1, 1, 2),
+(24, 9, 18,'生油',   '2',    '汤匙', 1, 1, 1),
+(25, 9, 13,'葱',     '2',    '根',   1, 1, 2),
+(26, 9, 24,'生抽',   '1',    '汤匙', 0, 1, 3),
+(27, 10,25,'牛腩',   '500',  '克',   1, 1, 1),
+(28, 10,1, '番茄',   '3',    '个',   1, 1, 2),
+(29, 11,23,'鸡胸肉', '300',  '克',   1, 1, 1),
+(30, 11,1, '番茄',   '2',    '个',   1, 1, 2),
+(31, 11,8, '土豆',   '1',    '个',   1, 1, 3),
+(32, 12,8, '土豆',   '2',    '个',   1, 1, 1),
+(33, 12,11,'白醋',   '2',    '汤匙', 0, 1, 2),
+(34, 13,8, '土豆',   '2',    '个',   1, 1, 1),
+(35, 13,2, '鸡蛋',   '2',    '个',   1, 1, 2),
+(36, 13,1, '番茄',   '1',    '个',   1, 1, 3),
+(37, 13,7, '青椒',   '1',    '个',   1, 1, 4),
+(38, 14,23,'鸡胸肉', '200',  '克',   1, 1, 1),
+(39, 14,7, '青椒',   '1',    '个',   0, 1, 2);
+
+-- 食材替代（番茄炒蛋 · 白糖可替代）
+INSERT INTO t_ingredient_substitute (recipe_ingredient_id, ingredient_id, name, ratio_desc, note) VALUES
+(5, 14, '蜂蜜',   '白糖 1 茶匙 → 蜂蜜 半茶匙', '甜味更柔和，略带蜜香。'),
+(5, 15, '番茄酱', '白糖 1 茶匙 → 番茄酱 1 汤匙', '酸甜更明显，成品颜色更深红。');
+
+-- 分步教学（图文）
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(1, 1, '备料',     '番茄去蒂切滚刀块，鸡蛋磕入碗中打散，葱切葱花备用。', NULL, 1),
+(1, 2, '打蛋',     '蛋液加一小撮盐搅打均匀，打到蛋液表面起细密泡沫。', '加一点水蛋会更嫩。', 2),
+(1, 3, '炒鸡蛋',   '锅中倒油烧至七成热，倒入蛋液，边缘凝固后用锅铲轻推，炒到六七成熟、呈大块盛出备用。', '蛋不要炒太老，后面还会回锅，六七成熟最嫩。', 3),
+(1, 4, '炒番茄',   '补少许油，下番茄块中火翻炒，加白糖与盐，炒到番茄出汁变软。', '番茄出汁后再放糖，酸甜更平衡。', 4),
+(1, 5, '合炒调味', '倒入炒好的鸡蛋，快速翻匀让蛋块裹上番茄汁，撒葱花出锅。', '回锅时间不超过 30 秒。', 5),
+(2, 1, '备料',     '土豆去皮切细丝，清水冲洗去淀粉后沥干；青椒切丝。', '土豆丝泡水后更爽脆。', 1),
+(2, 2, '爆香',     '热锅冷油下干辣椒与花椒小火爆香，捞出料渣。', '油温别太高，以免辣椒发苦。', 2),
+(2, 3, '快炒',     '倒入土豆丝大火快炒，加白醋、盐，最后放青椒丝炒断生即可。', '起锅前放醋更脆。', 3),
+(3, 1, '备料',     '番茄切块，鸡蛋打散，淀粉加水调成水淀粉。', NULL, 1),
+(3, 2, '煮汤',     '番茄下锅炒出汁，加清水煮开。', NULL, 2),
+(3, 3, '淋蛋花',   '转小火，沿锅边缓缓淋入蛋液，待蛋花浮起调味即可。', '淋蛋液时不要搅动，蛋花才漂亮。', 3),
+(4, 1, '备料',     '土豆擦丝，鸡蛋打散，与面粉拌成稠糊。', NULL, 1),
+(4, 2, '调糊',     '加盐调味，静置 5 分钟让面粉吸水。', NULL, 2),
+(4, 3, '煎饼',     '平底锅少油，倒入面糊摊平，两面煎至金黄即可。', '小火慢煎，内部才不会夹生。', 3),
+(5, 1, '备料',     '青椒去籽切丝，鸡蛋打散加盐。', NULL, 1),
+(5, 2, '炒蛋',     '热油倒入蛋液炒至凝固盛出。', NULL, 2),
+(5, 3, '合炒',     '下青椒炒断生，回锅鸡蛋翻匀出锅。', NULL, 3),
+(6, 1, '备料',     '番茄切块，土豆切滚刀块，鸡蛋打散。', NULL, 1),
+(6, 2, '焖煮',     '番茄与土豆下锅加水焖 10 分钟至软。', NULL, 2),
+(6, 3, '卧蛋',     '汤汁浓稠后打入鸡蛋，盖盖焖 3 分钟。', NULL, 3),
+(7, 1, '备料',     '莲花瓣洗净焯水，鸡蛋打散加温水调匀。', NULL, 1),
+(7, 2, '蒸制',     '莲花瓣垫底，倒入蛋液，盖保鲜膜扎孔蒸 10 分钟。', '蛋液与温水比例 1:1.5 最嫩。', 2),
+(7, 3, '调味',     '淋少许生抽与香油即可。', NULL, 3),
+(8, 1, '调糊',     '面粉加蛋液与清水调成可流动的稀糊。', NULL, 1),
+(8, 2, '摊饼',     '平底锅刷油，倒入面糊转匀，小火烙至两面金黄。', NULL, 2),
+(8, 3, '卷制',     '卷上生菜或小菜，切段装盘。', NULL, 3),
+(9, 1, '熬葱油',   '生油冷油下葱段，小火熬至葱段焦黄。', '冷油下葱，葱香更足。', 1),
+(9, 2, '煮面',     '面条煮熟过凉水沥干。', NULL, 2),
+(9, 3, '拌面',     '葱油加生抽与糖拌入面条即可。', NULL, 3),
+(10, 1, '焯水',    '牛腩冷水下锅焯去血沫，捞出洗净。', NULL, 1),
+(10, 2, '炖煮',    '牛腩加番茄与清水，小火炖 45 分钟。', NULL, 2),
+(10, 3, '收汁',    '大火收汁，加盐调味。', NULL, 3),
+(11, 1, '备料',    '鸡胸肉切块焯水，番茄土豆切块。', NULL, 1),
+(11, 2, '炖煮',    '全部食材加水炖 30 分钟。', NULL, 2),
+(11, 3, '调味',    '加盐与少许糖调味即可。', NULL, 3),
+(12, 1, '备料',    '土豆切丝泡水，沥干备用。', NULL, 1),
+(12, 2, '快炒',    '热油下土豆丝大火快炒。', NULL, 2),
+(12, 3, '淋醋',    '起锅前淋白醋，加盐炒匀。', '醋分两次放，香气更足。', 3),
+(13, 1, '制泥',    '土豆蒸熟压泥，拌入蛋液摊成薄饼。', NULL, 1),
+(13, 2, '炒馅',    '番茄青椒炒至浓稠做馅。', NULL, 2),
+(13, 3, '卷制',    '薄饼卷入馅料，切段摆盘。', NULL, 3),
+(14, 1, '煮鸡胸',  '鸡胸肉冷水下锅煮熟，放凉撕条。', NULL, 1),
+(14, 2, '备菜',    '青椒与蔬菜洗净切好。', NULL, 2),
+(14, 3, '拌匀',    '加油醋汁拌匀即可。', NULL, 3);
+
+-- 商家（3 家已通过 + 3 家待审核）
+INSERT INTO t_merchant (id, name, rating, distance_km, delivery_minutes, tags, stock_status, audit_status) VALUES
+(1, '邻里鲜蔬铺',   98, 0.8, 30, '综合推荐', '库存充足', '已通过'),
+(2, '早市调味杂货', 95, 1.6, 45, '价格最低', '库存充足', '已通过'),
+(3, '家门口菜场',   99, 0.4, 25, NULL,      '库存紧张', '已通过'),
+(4, '城西生鲜合作社', 96, 2.1, 40, NULL, '库存充足', '待审核'),
+(5, '四季菜篮子',     94, 1.2, 35, NULL, '库存充足', '待审核'),
+(6, '老王菜摊',       91, 0.6, 20, NULL, '库存充足', '待审核');
+
+-- 商家商品报价（覆盖购物清单：食用油/白糖/白醋/葱/干辣椒/面粉）
+INSERT INTO t_merchant_product (merchant_id, ingredient_id, name, price, sell_unit, stock, audit_status) VALUES
+(1, 4,  '食用油', 5.00, '1 桶(900ml)',  200, '已通过'), (1, 5, '白糖', 3.50, '1 袋(400g)',  300, '已通过'),
+(1, 11, '白醋',   4.00, '1 瓶(500ml)',  150, '已通过'), (1, 13,'葱',   2.00, '1 把(约300g)',100, '已通过'),
+(1, 12, '干辣椒', 2.00, '1 袋(100g)',   120, '已通过'), (1, 16,'面粉', 2.00, '1 袋(1kg)',   500, '已通过'),
+(2, 4,  '食用油', 4.20, '1 桶(900ml)',  180, '已通过'), (2, 5, '白糖', 3.00, '1 袋(400g)',  260, '已通过'),
+(2, 11, '白醋',   3.50, '1 瓶(500ml)',  140, '已通过'), (2, 13,'葱',   1.50, '1 把(约300g)', 90, '已通过'),
+(2, 12, '干辣椒', 2.00, '1 袋(100g)',   110, '已通过'), (2, 16,'面粉', 2.00, '1 袋(1kg)',   480, '已通过'),
+(3, 4,  '食用油', 6.00, '1 桶(900ml)',  160, '已通过'), (3, 11,'白醋', 5.00, '1 瓶(500ml)', 130, '已通过'),
+(3, 13, '葱',     2.00, '1 把(约300g)',  80, '已通过'), (3, 12,'干辣椒',3.00, '1 袋(100g)',  100, '已通过'),
+(3, 16, '面粉',   5.00, '1 袋(1kg)',    400, '已通过');
+
+-- 商品上架审核（12 条待审核，对应后台「商品上架审核」）
+INSERT INTO t_merchant_product (merchant_id, ingredient_id, name, price, sell_unit, stock, audit_status) VALUES
+(1, 1, '番茄', 4.50, '500g',        100, '待审核'), (1, 2, '鸡蛋', 8.00, '1 盒(10枚)', 100, '待审核'),
+(1, 7, '青椒', 3.20, '500g',        100, '待审核'), (1, 8, '土豆', 2.80, '1kg',       100, '待审核'),
+(2, 1, '番茄', 4.20, '500g',        100, '待审核'), (2, 2, '鸡蛋', 7.60, '1 盒(10枚)', 100, '待审核'),
+(2, 19,'洋葱', 2.50, '500g',        100, '待审核'), (2, 20,'豆腐', 3.00, '1 盒(400g)', 100, '待审核'),
+(3, 1, '番茄', 5.00, '500g',        100, '待审核'), (3, 2, '鸡蛋', 8.50, '1 盒(10枚)', 100, '待审核'),
+(3, 21,'胡萝卜',2.60, '500g',       100, '待审核'), (3, 22,'五花肉',18.00,'500g',      60, '待审核');
+
+-- 购物清单（演示用户：来自 番茄炒蛋 / 青椒土豆丝）
+INSERT INTO t_shopping_list (id, user_id, name, source_recipes) VALUES
+(1, 1, '我的购物清单', '番茄炒蛋,青椒土豆丝');
+
+INSERT INTO t_shopping_list_item (list_id, ingredient_id, name, amount, unit, category, checked, recipe_source, sort) VALUES
+(1, 4,  '食用油', '1',  '汤匙', '调味', 0, '番茄炒蛋',   1),
+(1, 5,  '白糖',   '1',  '茶匙', '调味', 0, '番茄炒蛋',   2),
+(1, 11, '白醋',   '1',  '汤匙', '调味', 0, '青椒土豆丝', 3),
+(1, 13, '葱',     '1',  '根',   '蔬菜', 0, '青椒土豆丝', 4),
+(1, 12, '干辣椒', '少许','',    '调味', 1, '青椒土豆丝', 5);
+
+-- 订单（对齐 05 / 07 页状态计数：待支付 1 / 已支付 2 / 配送中 3 / 已完成 4）
+INSERT INTO t_orders (id, order_no, user_id, merchant_id, merchant_name, amount, status, delivery_desc, create_time) VALUES
+(1,  'CS202608010001', 1, 1, '邻里鲜蔬铺',   18.50, '配送中', '预计 30 分钟内送达', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(2,  'CS202608010002', 1, 2, '早市调味杂货', 16.20, '已完成', NULL, DATE_SUB(NOW(), INTERVAL 5 DAY)),
+(3,  'CS202608010003', 2, 1, '邻里鲜蔬铺',   18.50, '配送中', '预计 30 分钟内送达', NOW()),
+(4,  'CS202608010004', 3, 3, '家门口菜场',   21.00, '配送中', '预计 25 分钟内送达', NOW()),
+(5,  'CS202608010005', 4, 2, '早市调味杂货', 16.20, '已支付', NULL, NOW()),
+(6,  'CS202608010006', 5, 1, '邻里鲜蔬铺',   18.50, '已支付', NULL, NOW()),
+(7,  'CS202608010007', 2, 2, '早市调味杂货', 16.20, '待支付', NULL, NOW()),
+(8,  'CS202608010008', 3, 1, '邻里鲜蔬铺',   18.50, '已完成', NULL, DATE_SUB(NOW(), INTERVAL 9 DAY)),
+(9,  'CS202608010009', 4, 3, '家门口菜场',   21.00, '已完成', NULL, DATE_SUB(NOW(), INTERVAL 12 DAY)),
+(10, 'CS202608010010', 5, 1, '邻里鲜蔬铺',   18.50, '已完成', NULL, DATE_SUB(NOW(), INTERVAL 15 DAY));
+
+INSERT INTO t_order_item (order_id, ingredient_id, name, amount, unit, price) VALUES
+(1, 4, '食用油','1','汤匙',5.00), (1, 5, '白糖','1','茶匙',3.50), (1, 11,'白醋','1','汤匙',4.00),
+(1, 13,'葱','1','根',2.00), (1, 12,'干辣椒','少许','',2.00), (1, 16,'面粉','1','袋',2.00),
+(2, 4, '食用油','1','汤匙',4.20), (2, 5, '白糖','1','茶匙',3.00), (2, 11,'白醋','1','汤匙',3.50),
+(2, 13,'葱','1','根',1.50), (2, 12,'干辣椒','少许','',2.00), (2, 16,'面粉','1','袋',2.00);
+
+-- 收藏 / 历史 / 评价
+INSERT INTO t_recipe_favorite (user_id, recipe_id) VALUES (1, 1), (1, 2), (1, 3);
+INSERT INTO t_recipe_history (user_id, recipe_id, view_time) VALUES
+(1, 1, DATE_SUB(NOW(), INTERVAL 2 HOUR)), (1, 2, DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- 评论内容审核（8 条待审核）
+INSERT INTO t_recipe_review (user_id, recipe_id, rating, tags, content, status, create_time) VALUES
+(2, 1, 5, '会再做', '番茄出汁后放糖确实好吃。', '待审核', DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(3, 1, 4, NULL,    '火候有点过，蛋老了。',       '待审核', DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(4, 2, 5, '爽脆',  '泡水这一步很关键。',         '待审核', DATE_SUB(NOW(), INTERVAL 8 HOUR)),
+(2, 3, 5, NULL,    '蛋花很漂亮。',               '待审核', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(3, 4, 4, NULL,    '外脆里糯，孩子爱吃。',       '待审核', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(4, 5, 3, NULL,    '青椒有点辣。',               '待审核', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(5, 6, 5, '会再做', '汤汁拌饭一绝。',            '待审核', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(2, 12,5, NULL,    '醋香很足。',                 '待审核', DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(1, 1, 5, '家常味', '最常做的一道菜。',          '已通过', DATE_SUB(NOW(), INTERVAL 6 DAY));
+
+-- 用户反馈（5 条，3 条待处理）
+INSERT INTO t_feedback (user_id, content, contact, status, create_time) VALUES
+(1, '希望支持导出 PDF 版菜谱。', '13800000000', '待处理', DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(2, 'AI 生成的菜谱很有创意，赞！', NULL, '待处理', DATE_SUB(NOW(), INTERVAL 6 HOUR)),
+(3, '购物清单能否按商家自动分组？', NULL, '待处理', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(4, '找不到某个菜谱的替代方案。', NULL, '已处理', DATE_SUB(NOW(), INTERVAL 4 DAY)),
+(5, '希望增加低卡筛选。', NULL, '已处理', DATE_SUB(NOW(), INTERVAL 7 DAY));
+
+-- AI 生成记录（近 7 天，用于后台趋势图）
+INSERT INTO t_ai_generation_record (user_id, source, input_ingredients, recipe_id, create_time) VALUES
+(1, '会员AI新菜谱', '番茄,鸡蛋,青椒,土豆', 13, DATE_SUB(NOW(), INTERVAL 6 DAY)),
+(2, '首页生成',     '番茄,鸡蛋',         1,  DATE_SUB(NOW(), INTERVAL 6 DAY)),
+(3, '首页生成',     '土豆,青椒',         2,  DATE_SUB(NOW(), INTERVAL 5 DAY)),
+(4, '会员AI新菜谱', '鸡胸肉,青椒',       14, DATE_SUB(NOW(), INTERVAL 5 DAY)),
+(1, '首页生成',     '番茄,鸡蛋',         3,  DATE_SUB(NOW(), INTERVAL 4 DAY)),
+(2, '会员AI新菜谱', '土豆,鸡蛋',         4,  DATE_SUB(NOW(), INTERVAL 4 DAY)),
+(3, '首页生成',     '番茄,牛腩',         10, DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(4, '首页生成',     '青椒,鸡蛋',         5,  DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(5, '会员AI新菜谱', '番茄,土豆,鸡蛋',    6,  DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(1, '首页生成',     '土豆,白醋',         12, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(2, '首页生成',     '面粉,鸡蛋',         8,  DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(3, '会员AI新菜谱', '莲花,鸡蛋',         7,  DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- =====================================================================
+-- 六（二）、扩充菜谱库（2026-10：新增 18 道菜 + 7 种食材，
+--   覆盖洋葱/胡萝卜/五花肉/豆腐/大米等常用食材，并补足素食/生酮/低卡与辣味/酸味/较难菜谱）
+-- =====================================================================
+
+-- 新增食材
+INSERT INTO t_ingredient (id, name, alias, category, default_unit) VALUES
+(27, '蒜',   '',       '调味', '瓣'),
+(28, '姜',   '',       '调味', '片'),
+(29, '黄瓜', '',       '蔬菜', '根'),
+(30, '白菜', '',       '蔬菜', '克'),
+(31, '香菇', '',       '蔬菜', '朵'),
+(32, '料酒', '',       '调味', '汤匙'),
+(33, '香油', '',       '调味', '数滴');
+
+-- 新增菜谱（15-32）
+INSERT INTO t_recipe (id, name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs) VALUES
+(15, '洋葱炒蛋',       '家常菜', '简单', '清淡', 10, '洋葱甜香配嫩滑炒蛋，五分钟出锅的快手菜。',       2, '人工', '已上线', 190, 12, 12,  8),
+(16, '洋葱回锅肉',     '家常菜', '中等', '咸',   30, '五花肉煸出油香，洋葱吸满肉汁，下饭一绝。',       3, '人工', '已上线', 430, 18, 36,  7),
+(17, '胡萝卜炒蛋',     '家常菜', '简单', '清淡', 10, '胡萝卜丝炒出甜味，裹上金黄蛋块，颜色亮眼。',     2, '人工', '已上线', 200, 12, 12,  9),
+(18, '土豆胡萝卜炖牛腩','家常菜','较难', '咸',   70, '牛腩炖到软烂，土豆胡萝卜吸饱汤汁，一锅暖到心里。',4, '人工', '已上线', 390, 28, 20, 14),
+(19, '小葱拌豆腐',     '家常菜', '简单', '清淡',  8, '一清二白的经典凉菜，豆腐嫩滑葱香扑鼻。',         2, '人工', '已上线', 140, 12,  8,  6),
+(20, '白菜炖豆腐',     '家常菜', '简单', '清淡', 20, '白菜甜、豆腐嫩，一碗热汤菜的朴实满足。',         2, '人工', '已上线', 130, 10,  7,  8),
+(21, '香菇豆腐汤',     '家常菜', '简单', '清淡', 25, '香菇的鲜全融进汤里，豆腐一抿就化。',             2, '人工', '已上线', 150, 11,  6,  7),
+(22, '番茄豆腐汤',     '家常菜', '简单', '酸甜', 15, '番茄的酸甜配上嫩豆腐，开胃又低卡。',             2, '人工', '已上线', 120,  9,  5,  8),
+(23, '酱油蛋炒饭',     '家常菜', '简单', '咸',   12, '粒粒分明的蛋炒饭，酱油香裹着葱香。',             2, '人工', '已上线', 350, 12, 10, 48),
+(24, '青椒炒鸡丁',     '家常菜', '中等', '咸',   20, '鸡丁嫩滑青椒脆，高蛋白低碳水，减脂也放心。',     2, '人工', '已上线', 210, 30,  7,  6),
+(25, '凉拌黄瓜',       '家常菜', '简单', '清淡',  8, '拍黄瓜的爽脆加蒜香，夏天下饭神器。',             2, '人工', '已上线',  60,  2,  3,  5),
+(26, '虎皮青椒',       '家常菜', '简单', '辣',   15, '青椒煎出虎皮纹，微辣回甜，越吃越香。',           2, '人工', '已上线', 110,  3,  7,  7),
+(27, '香辣豆腐',       '家常菜', '中等', '辣',   18, '豆腐煎香再烧入味，辣得过瘾，素食也能吃出肉感。', 2, '人工', '已上线', 180, 14, 10,  7),
+(28, '红烧肉',         '家常菜', '较难', '咸',   60, '肥而不腻、瘦而不柴，红亮亮的下饭王者。',         3, '人工', '已上线', 520, 20, 45,  9),
+(29, '香菇蒸鸡',       '家常菜', '中等', '清淡', 30, '蒸出来的嫩鸡吸满菇香，清淡却足够鲜。',           2, '人工', '已上线', 220, 32,  5,  5),
+(30, '蒸蛋羹',         '家常菜', '简单', '清淡', 12, '嫩得像布丁的蛋羹，加几滴香油就是童年味道。',     2, '人工', '已上线', 130, 11,  8,  3),
+(31, '醋溜白菜',       '家常菜', '简单', '酸',   12, '酸辣脆爽，大火快炒才能锁住白菜的水灵。',         2, '人工', '已上线',  70,  2,  3,  6),
+(32, '洋葱土豆片',     '家常菜', '简单', '咸',   18, '土豆片焦香洋葱甜，素菜也能吃两碗饭。',           2, '人工', '已上线', 210,  5,  8, 26);
+
+-- 新增菜谱所需食材
+INSERT INTO t_recipe_ingredient (id, recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(40,  15, 19, '洋葱',   '1',    '个',   1, 1, 1),
+(41,  15, 2,  '鸡蛋',   '3',    '个',   1, 1, 2),
+(42,  15, 3,  '盐',     '少许', '',     0, 1, 3),
+(43,  15, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(44,  16, 22, '五花肉', '300',  '克',   1, 1, 1),
+(45,  16, 19, '洋葱',   '1',    '个',   1, 1, 2),
+(46,  16, 27, '蒜',     '3',    '瓣',   0, 1, 3),
+(47,  16, 24, '生抽',   '1',    '汤匙', 0, 1, 4),
+(48,  17, 21, '胡萝卜', '1',    '根',   1, 1, 1),
+(49,  17, 2,  '鸡蛋',   '3',    '个',   1, 1, 2),
+(50,  17, 3,  '盐',     '少许', '',     0, 1, 3),
+(51,  17, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(52,  18, 25, '牛腩',   '500',  '克',   1, 1, 1),
+(53,  18, 8,  '土豆',   '2',    '个',   1, 1, 2),
+(54,  18, 21, '胡萝卜', '1',    '根',   1, 1, 3),
+(55,  18, 28, '姜',     '3',    '片',   0, 1, 4),
+(56,  18, 32, '料酒',   '1',    '汤匙', 0, 1, 5),
+(57,  18, 3,  '盐',     '少许', '',     0, 1, 6),
+(58,  19, 20, '豆腐',   '1',    '块',   1, 1, 1),
+(59,  19, 13, '葱',     '2',    '根',   1, 1, 2),
+(60,  19, 3,  '盐',     '少许', '',     0, 1, 3),
+(61,  19, 33, '香油',   '数滴', '',     0, 1, 4),
+(62,  20, 30, '白菜',   '300',  '克',   1, 1, 1),
+(63,  20, 20, '豆腐',   '1',    '块',   1, 1, 2),
+(64,  20, 3,  '盐',     '少许', '',     0, 1, 3),
+(65,  20, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(66,  21, 31, '香菇',   '5',    '朵',   1, 1, 1),
+(67,  21, 20, '豆腐',   '1',    '块',   1, 1, 2),
+(68,  21, 13, '葱',     '1',    '根',   0, 1, 3),
+(69,  21, 3,  '盐',     '少许', '',     0, 1, 4),
+(70,  22, 1,  '番茄',   '2',    '个',   1, 1, 1),
+(71,  22, 20, '豆腐',   '1',    '块',   1, 1, 2),
+(72,  22, 3,  '盐',     '少许', '',     0, 1, 3),
+(73,  22, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(74,  23, 26, '大米',   '300',  '克',   1, 1, 1),
+(75,  23, 2,  '鸡蛋',   '2',    '个',   1, 1, 2),
+(76,  23, 13, '葱',     '2',    '根',   0, 1, 3),
+(77,  23, 24, '生抽',   '1',    '汤匙', 0, 1, 4),
+(78,  23, 4,  '食用油', '2',    '汤匙', 0, 1, 5),
+(79,  24, 23, '鸡胸肉', '300',  '克',   1, 1, 1),
+(80,  24, 7,  '青椒',   '2',    '个',   1, 1, 2),
+(81,  24, 27, '蒜',     '2',    '瓣',   0, 1, 3),
+(82,  24, 24, '生抽',   '1',    '汤匙', 0, 1, 4),
+(83,  24, 4,  '食用油', '1',    '汤匙', 0, 1, 5),
+(84,  25, 29, '黄瓜',   '2',    '根',   1, 1, 1),
+(85,  25, 27, '蒜',     '4',    '瓣',   0, 1, 2),
+(86,  25, 11, '白醋',   '1',    '汤匙', 0, 1, 3),
+(87,  25, 33, '香油',   '数滴', '',     0, 1, 4),
+(88,  26, 7,  '青椒',   '4',    '个',   1, 1, 1),
+(89,  26, 27, '蒜',     '2',    '瓣',   0, 1, 2),
+(90,  26, 24, '生抽',   '1',    '汤匙', 0, 1, 3),
+(91,  26, 5,  '白糖',   '半',   '茶匙', 0, 0, 4),
+(92,  26, 4,  '食用油', '1',    '汤匙', 0, 1, 5),
+(93,  27, 20, '豆腐',   '1',    '块',   1, 1, 1),
+(94,  27, 12, '干辣椒', '5',    '个',   1, 1, 2),
+(95,  27, 27, '蒜',     '3',    '瓣',   0, 1, 3),
+(96,  27, 24, '生抽',   '1',    '汤匙', 0, 1, 4),
+(97,  27, 4,  '食用油', '1',    '汤匙', 0, 1, 5),
+(98,  28, 22, '五花肉', '500',  '克',   1, 1, 1),
+(99,  28, 5,  '白糖',   '2',    '茶匙', 1, 1, 2),
+(100, 28, 24, '生抽',   '2',    '汤匙', 0, 1, 3),
+(101, 28, 28, '姜',     '4',    '片',   0, 1, 4),
+(102, 28, 32, '料酒',   '2',    '汤匙', 0, 1, 5),
+(103, 28, 4,  '食用油', '1',    '汤匙', 0, 1, 6),
+(104, 29, 23, '鸡胸肉', '300',  '克',   1, 1, 1),
+(105, 29, 31, '香菇',   '6',    '朵',   1, 1, 2),
+(106, 29, 28, '姜',     '3',    '片',   0, 1, 3),
+(107, 29, 24, '生抽',   '1',    '汤匙', 0, 1, 4),
+(108, 30, 2,  '鸡蛋',   '3',    '个',   1, 1, 1),
+(109, 30, 6,  '葱花',   '少许', '',     0, 0, 2),
+(110, 30, 3,  '盐',     '少许', '',     0, 1, 3),
+(111, 30, 33, '香油',   '数滴', '',     0, 0, 4),
+(112, 31, 30, '白菜',   '300',  '克',   1, 1, 1),
+(113, 31, 11, '白醋',   '2',    '汤匙', 1, 1, 2),
+(114, 31, 12, '干辣椒', '3',    '个',   0, 1, 3),
+(115, 31, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(116, 31, 3,  '盐',     '少许', '',     0, 1, 5),
+(117, 32, 8,  '土豆',   '2',    '个',   1, 1, 1),
+(118, 32, 19, '洋葱',   '1',    '个',   1, 1, 2),
+(119, 32, 3,  '盐',     '少许', '',     0, 1, 3),
+(120, 32, 4,  '食用油', '1',    '汤匙', 0, 1, 4),
+(121, 32, 24, '生抽',   '半',   '汤匙', 0, 0, 5);
+
+-- 新增菜谱分步教学
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(15, 1, '备料', '洋葱切丝，鸡蛋打散加少许盐。', NULL, 1),
+(15, 2, '炒蛋', '热油下蛋液炒至凝固盛出。', '蛋不要炒老。', 2),
+(15, 3, '合炒', '下洋葱丝炒软，回锅鸡蛋翻匀出锅。', NULL, 3),
+(16, 1, '煮肉', '五花肉整块冷水下锅煮 15 分钟，放凉切薄片。', NULL, 1),
+(16, 2, '煸炒', '少油下肉片煸至微卷出油，下蒜爆香。', NULL, 2),
+(16, 3, '合炒', '下洋葱丝炒断生，淋生抽炒匀出锅。', '洋葱断生即可，保留脆感。', 3),
+(17, 1, '备料', '胡萝卜擦丝，鸡蛋打散。', NULL, 1),
+(17, 2, '炒蛋', '热油炒蛋盛出。', NULL, 2),
+(17, 3, '合炒', '下胡萝卜丝炒软，回锅鸡蛋加盐炒匀。', '胡萝卜丝炒软甜味才出来。', 3),
+(18, 1, '焯水', '牛腩切块冷水下锅焯去血沫。', NULL, 1),
+(18, 2, '炖煮', '牛腩加姜、料酒与清水，小火炖 50 分钟。', NULL, 2),
+(18, 3, '下菜', '加土豆胡萝卜块再炖 15 分钟，加盐调味。', '土豆后放才不散。', 3),
+(19, 1, '烫豆腐', '豆腐沸水烫 1 分钟去豆腥，沥水放凉。', NULL, 1),
+(19, 2, '切块', '切小块装盘。', NULL, 2),
+(19, 3, '调味', '撒葱花、盐，淋香油拌匀。', NULL, 3),
+(20, 1, '备料', '白菜切段，豆腐切块。', NULL, 1),
+(20, 2, '炒白菜', '热油下白菜帮炒软，再下菜叶。', NULL, 2),
+(20, 3, '炖煮', '加水放豆腐炖 8 分钟，加盐调味。', NULL, 3),
+(21, 1, '备料', '香菇切片，豆腐切块。', NULL, 1),
+(21, 2, '煮汤', '香菇加水煮 10 分钟出鲜味。', NULL, 2),
+(21, 3, '下豆腐', '放豆腐再煮 5 分钟，加盐撒葱花。', NULL, 3),
+(22, 1, '炒番茄', '番茄切块，热油炒出汁。', NULL, 1),
+(22, 2, '煮汤', '加水煮开。', NULL, 2),
+(22, 3, '下豆腐', '放豆腐块煮 5 分钟，加盐调味。', NULL, 3),
+(23, 1, '备饭', '隔夜饭打散，鸡蛋打散。', '隔夜饭炒出来粒粒分明。', 1),
+(23, 2, '炒蛋', '热油炒蛋铲碎盛出。', NULL, 2),
+(23, 3, '炒饭', '下米饭炒散，加蛋、生抽、葱花炒匀。', NULL, 3),
+(24, 1, '腌鸡丁', '鸡胸切丁，用生抽腌 10 分钟。', NULL, 1),
+(24, 2, '滑炒', '热油下蒜爆香，鸡丁滑炒至变色。', NULL, 2),
+(24, 3, '合炒', '下青椒块炒断生，加盐调味出锅。', NULL, 3),
+(25, 1, '拍黄瓜', '黄瓜拍裂切段，蒜切末。', '拍过的黄瓜更入味。', 1),
+(25, 2, '腌制', '加盐腌 5 分钟沥去水。', NULL, 2),
+(25, 3, '调味', '加蒜末、白醋、香油拌匀。', NULL, 3),
+(26, 1, '煎椒', '青椒整个下锅小火煎出虎皮纹。', '用锅铲轻压更均匀。', 1),
+(26, 2, '调味', '下蒜末、生抽、糖与少许水。', NULL, 2),
+(26, 3, '收汁', '翻炒收汁出锅。', NULL, 3),
+(27, 1, '煎豆腐', '豆腐切块煎至两面金黄。', NULL, 1),
+(27, 2, '爆香', '下干辣椒与蒜爆香。', '辣椒别炒糊。', 2),
+(27, 3, '烧制', '加生抽与少许水烧至入味。', NULL, 3),
+(28, 1, '焯水', '五花肉切块焯水去沫。', NULL, 1),
+(28, 2, '炒糖色', '小火把白糖炒成琥珀色，下肉块裹匀。', '糖色一变琥珀色立刻下肉，晚了会苦。', 2),
+(28, 3, '炖煮', '加姜、料酒、生抽与热水，小火炖 40 分钟收汁。', '加热水，肉不会紧缩。', 3),
+(29, 1, '腌制', '鸡胸切片，与香菇、姜、生抽拌均腌 15 分钟。', NULL, 1),
+(29, 2, '摆盘', '连汁倒入深盘。', NULL, 2),
+(29, 3, '蒸制', '水开后上锅蒸 12 分钟。', '大火蒸，肉质更嫩。', 3),
+(30, 1, '打蛋', '鸡蛋加盐打散，兑 1.5 倍温水。', '过筛更嫩滑。', 1),
+(30, 2, '蒸制', '盖保鲜膜扎孔，水开蒸 10 分钟。', NULL, 2),
+(30, 3, '点缀', '撒葱花淋香油即可。', NULL, 3),
+(31, 1, '备料', '白菜帮斜切片，叶撕小块。', NULL, 1),
+(31, 2, '爆香', '热油下干辣椒爆香。', NULL, 2),
+(31, 3, '快炒', '下白菜大火快炒，起锅前淋白醋加盐。', '醋沿锅边淋，香气更足。', 3),
+(32, 1, '备料', '土豆切薄片泡水去淀粉，洋葱切丝。', NULL, 1),
+(32, 2, '煎土豆', '热油把土豆片煎至微黄。', NULL, 2),
+(32, 3, '合炒', '下洋葱丝炒软，加盐与生抽炒匀。', NULL, 3);
+
+-- =====================================================================
+--  完成
+-- =====================================================================
+
+-- =====================================================================
+-- 补充菜谱种子数据（2026-10-27）
+-- 背景：原库仅 12 道在线菜谱，且全部集中在 番茄/鸡蛋/土豆/青椒，
+--       用户用「豆腐、胡萝卜、五花肉」生成时命中数为 0，页面只能显示"0 道菜谱"。
+-- 本脚本补充 12 道家常菜，覆盖 豆腐/胡萝卜/五花肉/洋葱/大米/牛腩/鸡胸肉 等缺口。
+-- 可重复执行：先按菜名删除（含子表），再重新插入。
+-- =====================================================================
+
+-- 表的排序规则是 utf8mb4_general_ci，会话变量必须同collation，
+-- 否则 FIND_IN_SET 会报 "Illegal mix of collations"
+
+
+SET @names := '麻婆豆腐,家常豆腐,红烧五花肉,五花肉炒胡萝卜,胡萝卜炒蛋,洋葱炒蛋,糖醋豆腐,番茄豆腐汤,胡萝卜土豆丝,土豆胡萝卜炖牛腩,黑椒煎鸡胸,家常蛋炒饭';
+
+-- 幂等清理：先删子表，再删主表
+DELETE ri FROM t_recipe_ingredient ri JOIN t_recipe r ON r.id = ri.recipe_id
+  WHERE FIND_IN_SET(r.name, @names) > 0;
+DELETE rs FROM t_recipe_step rs JOIN t_recipe r ON r.id = rs.recipe_id
+  WHERE FIND_IN_SET(r.name, @names) > 0;
+DELETE FROM t_recipe WHERE FIND_IN_SET(name, @names) > 0;
+
+-- ---------------------------------------------------------------- 1
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('麻婆豆腐', '家常菜', '简单', '麻辣', 20,
+        '豆腐嫩滑、肉末酥香，一勺豆瓣香辣汁拌饭能吃两碗，全程 20 分钟。', 2, '人工', '已上线', 268, 16.4, 17.2, 9.1);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '豆腐' LIMIT 1),   '豆腐',   '400', '克', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '五花肉' LIMIT 1), '五花肉', '80',  '克', 1, 0, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '干辣椒' LIMIT 1), '干辣椒', '3',   '个', 0, 0, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '1',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '葱花' LIMIT 1),   '葱花',   '少许', NULL, 0, 0, 5),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2',   '克', 0, 1, 6);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '豆腐切块焯水', '豆腐切 2 厘米方块，放入淡盐水中焯 1 分钟捞出沥干。', '淡盐水焯过不易碎，还能去豆腥味', 1),
+(@rid, 2, '炒肉末出香', '五花肉切末下锅中火煸出油，加干辣椒段炒香，加生抽上色。', '肉末要煸到微微金黄，香味才出得来', 2),
+(@rid, 3, '下豆腐烧入味', '加半碗热水煮开，下豆腐块小火烧 5 分钟，轻推翻动不要铲。', '全程中小火，推动锅身代替翻炒，豆腐才完整', 3),
+(@rid, 4, '勾薄芡装盘', '淋少许水淀粉收汁，撒葱花与盐调味即可。', '芡要薄，能挂住豆腐表面就够', 4);
+
+-- ---------------------------------------------------------------- 2
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('家常豆腐', '家常菜', '简单', '咸香', 18,
+        '豆腐两面煎出焦壳，再和五花肉、青椒一起烧，外韧内嫩咸香下饭。', 2, '人工', '已上线', 302, 17.1, 21.5, 8.4);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '豆腐' LIMIT 1),   '豆腐',   '400', '克', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '五花肉' LIMIT 1), '五花肉', '100', '克', 1, 0, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '青椒' LIMIT 1),   '青椒',   '1',   '个', 0, 0, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '1',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '2',   '勺', 0, 1, 5),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2',   '克', 0, 1, 6);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '豆腐煎香', '豆腐切厚片，厨房纸吸干水分，热油下锅两面煎至金黄盛出。', '吸干水分才不粘锅、不溅油', 1),
+(@rid, 2, '煸五花肉', '五花肉切薄片下锅煸出油，边缘卷起时加生抽炒匀。', '用煸出的猪油烧豆腐最香', 2),
+(@rid, 3, '合烧入味', '下青椒片翻炒，倒回豆腐，加半碗水烧 3 分钟收汁，加盐调味。', '豆腐最后放，避免翻碎', 3);
+
+-- ---------------------------------------------------------------- 3
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('红烧五花肉', '家常菜', '中等', '咸甜', 55,
+        '只用糖和生抽炒出红亮糖色，肥而不腻入口即化，冷天最下饭的一道硬菜。', 3, '人工', '已上线', 486, 18.2, 42.6, 11.3);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '五花肉' LIMIT 1), '五花肉', '600', '克', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '白糖' LIMIT 1),   '白糖',   '30',  '克', 0, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '3',   '勺', 0, 1, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '葱' LIMIT 1),     '葱',     '2',   '段', 0, 0, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2',   '克', 0, 0, 5);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '切块焯水', '五花肉切 3 厘米见方块，冷水下锅煮开撇净浮沫，捞出冲净。', '冷水下锅血沫才出得干净', 1),
+(@rid, 2, '炒糖色', '锅中少油下白糖，小火熬到枣红色起小泡，立刻下肉块翻炒上色。', '糖色一到枣红就要下肉，再熬会发苦', 2),
+(@rid, 3, '加水慢炖', '加生抽、葱段和没过肉的热水，大火烧开转小火炖 40 分钟。', '一定加热水，冷水会让肉质变紧', 3),
+(@rid, 4, '大火收汁', '开盖转大火收至汤汁浓稠挂肉，尝味补盐。', '收汁时要翻动，避免粘底糊锅', 4);
+
+-- ---------------------------------------------------------------- 4
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('五花肉炒胡萝卜', '家常菜', '简单', '咸香', 15,
+        '五花肉煸出的油把胡萝卜炒得甜软，荤素搭配，15 分钟出锅。', 2, '人工', '已上线', 338, 14.6, 26.8, 10.2);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '五花肉' LIMIT 1), '五花肉', '200', '克', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '胡萝卜' LIMIT 1), '胡萝卜', '2',   '根', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '青椒' LIMIT 1),   '青椒',   '1',   '个', 0, 0, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '1',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2',   '克', 0, 1, 5);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '切片煸油', '五花肉切薄片，冷锅下锅小火煸至出油、边缘微卷。', '冷锅下肉，油慢慢逼出来不粘锅', 1),
+(@rid, 2, '炒胡萝卜', '下胡萝卜片翻炒 3 分钟，让胡萝卜吸足猪油。', '胡萝卜素是脂溶性的，有油才好吸收', 2),
+(@rid, 3, '调味出锅', '加青椒片、生抽和盐，大火翻炒 1 分钟即可。', '青椒最后放，保持脆口和翠绿', 3);
+
+-- ---------------------------------------------------------------- 5
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('胡萝卜炒蛋', '家常菜', '简单', '清淡', 12,
+        '胡萝卜丝炒软后和鸡蛋合炒，微甜带蛋香，孩子也爱吃。', 2, '人工', '已上线', 218, 12.3, 13.4, 11.6);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '胡萝卜' LIMIT 1), '胡萝卜', '2', '根', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '鸡蛋' LIMIT 1),   '鸡蛋',   '3', '个', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '2', '勺', 0, 1, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '葱花' LIMIT 1),   '葱花',   '少许', NULL, 0, 0, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2', '克', 0, 1, 5);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '胡萝卜切丝', '胡萝卜去皮切细丝，越细越容易炒软。', '刀工不熟练可用擦丝器', 1),
+(@rid, 2, '炒软胡萝卜', '热油下胡萝卜丝中火炒 3 分钟至变软出甜味，盛出。', '胡萝卜要多炒一会儿才不硬', 2),
+(@rid, 3, '炒蛋合炒', '鸡蛋打散加盐，热油炒至半凝固，倒回胡萝卜翻炒均匀撒葱花。', '蛋液半凝固时下胡萝卜，口感最嫩', 3);
+
+-- ---------------------------------------------------------------- 6
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('洋葱炒蛋', '家常菜', '简单', '咸香', 12,
+        '洋葱炒到半透明带甜，裹着嫩蛋，十分钟搞定的下饭快手菜。', 2, '人工', '已上线', 226, 12.8, 14.2, 10.8);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '洋葱' LIMIT 1),   '洋葱',   '1', '个', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '鸡蛋' LIMIT 1),   '鸡蛋',   '3', '个', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '2', '勺', 0, 1, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2', '克', 0, 1, 4);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '洋葱切丝', '洋葱切细丝，怕辣眼可先放冰箱冷藏 10 分钟再切。', '冷藏后切不流泪', 1),
+(@rid, 2, '炒洋葱', '热油下洋葱中火炒 2 分钟至边缘透明、香味变甜。', '别炒到发黄，透明就够', 2),
+(@rid, 3, '合炒鸡蛋', '倒入加了盐的蛋液，静置 3 秒再翻炒，蛋液凝固即出锅。', '下蛋液后稍等再翻，蛋才成块', 3);
+
+-- ---------------------------------------------------------------- 7
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('糖醋豆腐', '家常菜', '简单', '酸甜', 18,
+        '豆腐煎出脆壳，裹上酸甜汁，素菜也能做出糖醋排骨的满足感。', 2, '人工', '已上线', 246, 13.2, 14.8, 15.6);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '豆腐' LIMIT 1),   '豆腐',   '400', '克', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '白醋' LIMIT 1),   '白醋',   '2',   '勺', 0, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '白糖' LIMIT 1),   '白糖',   '2',   '勺', 0, 1, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '1',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '面粉' LIMIT 1),   '面粉',   '2',   '勺', 0, 0, 5),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '3',   '勺', 0, 1, 6);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '豆腐裹粉', '豆腐切块吸干水分，薄薄裹一层面粉。', '裹粉是形成脆壳的关键', 1),
+(@rid, 2, '煎至金黄', '中火下锅，六面煎至金黄定型后盛出。', '定型前不要翻动，容易破', 2),
+(@rid, 3, '调糖醋汁', '白醋、白糖、生抽加两勺水调匀，倒入锅中煮到冒泡微稠。', '糖醋比例 1:1 最好入口', 3),
+(@rid, 4, '裹汁出锅', '倒回豆腐快速翻匀，让每块都裹上汁即可。', '动作要快，久煮脆壳会软', 4);
+
+-- ---------------------------------------------------------------- 8
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('番茄豆腐汤', '家常菜', '简单', '酸甜', 15,
+        '番茄炒出沙再加豆腐煮，汤色红亮、豆腐滑嫩，一碗下去很舒服。', 2, '人工', '已上线', 148, 10.6, 7.2, 9.8);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '番茄' LIMIT 1),   '番茄',   '2',   '个', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '豆腐' LIMIT 1),   '豆腐',   '300', '克', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '葱花' LIMIT 1),   '葱花',   '少许', NULL, 0, 0, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '1',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2',   '克', 0, 1, 5);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '番茄炒沙', '番茄切块，热油下锅中火炒到出汁变沙。', '炒出沙汤才浓、颜色才红', 1),
+(@rid, 2, '加水煮开', '加两碗热水煮开，下豆腐块转中小火煮 5 分钟。', '热水下锅汤更清甜', 2),
+(@rid, 3, '调味出锅', '加盐调味，撒葱花即可。', '豆腐易碎，用推动锅身代替搅拌', 3);
+
+-- ---------------------------------------------------------------- 9
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('胡萝卜土豆丝', '家常菜', '简单', '酸香', 15,
+        '土豆丝脆、胡萝卜丝甜，一点白醋提味，配色好看又下饭。', 2, '人工', '已上线', 186, 5.2, 6.4, 27.8);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '土豆' LIMIT 1),   '土豆',   '2', '个', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '胡萝卜' LIMIT 1), '胡萝卜', '1', '根', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '青椒' LIMIT 1),   '青椒',   '1', '个', 0, 0, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '白醋' LIMIT 1),   '白醋',   '1', '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '2', '勺', 0, 1, 5),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2', '克', 0, 1, 6);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '切丝泡水', '土豆、胡萝卜切细丝，土豆丝用清水冲两遍去淀粉后沥干。', '冲掉淀粉才不粘锅、更脆', 1),
+(@rid, 2, '大火快炒', '热油下土豆丝和胡萝卜丝，大火翻炒 2 分钟。', '全程大火，火小了会出水变软', 2),
+(@rid, 3, '烹醋调味', '沿锅边淋白醋，加青椒丝和盐，再炒 30 秒出锅。', '醋沿锅边淋，酸香更足', 3);
+
+-- ---------------------------------------------------------------- 10
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('土豆胡萝卜炖牛腩', '家常菜', '中等', '咸香', 90,
+        '牛腩炖到软烂，土豆吸饱肉汁、胡萝卜回甜，一锅端上桌。', 3, '人工', '已上线', 412, 26.4, 24.8, 22.6);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '牛腩' LIMIT 1),   '牛腩',   '500', '克', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '土豆' LIMIT 1),   '土豆',   '2',   '个', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '胡萝卜' LIMIT 1), '胡萝卜', '2',   '根', 0, 1, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '2',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '葱' LIMIT 1),     '葱',     '2',   '段', 0, 0, 5),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '3',   '克', 0, 1, 6);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '牛腩焯水', '牛腩切块冷水下锅，煮开撇沫后捞出冲净。', '冷水下锅才能把血水逼出来', 1),
+(@rid, 2, '炖牛腩', '牛腩加生抽、葱段和没过食材的热水，大火烧开转小火炖 50 分钟。', '水一次加够，中途加水会变柴', 2),
+(@rid, 3, '下根茎', '加土豆块、胡萝卜块继续炖 20 分钟至软糯。', '土豆后放，炖久了会化在汤里', 3),
+(@rid, 4, '调味收汁', '加盐调味，大火收至汤汁略浓即可。', '盐最后放，牛肉更容易烂', 4);
+
+-- ---------------------------------------------------------------- 11
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('黑椒煎鸡胸', '轻食', '简单', '咸香', 20,
+        '鸡胸提前拍松腌入味，外焦里嫩不柴，配洋葱一起煎更香。', 2, '人工', '已上线', 286, 34.2, 12.6, 7.4);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '鸡胸肉' LIMIT 1), '鸡胸肉', '2',   '块', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '洋葱' LIMIT 1),   '洋葱',   '1',   '个', 1, 0, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '生抽' LIMIT 1),   '生抽',   '1',   '勺', 0, 1, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '1',   '勺', 0, 1, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2',   '克', 0, 1, 5);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '拍松腌制', '鸡胸横刀片薄、用刀背拍松，加生抽、盐抓匀腌 10 分钟。', '拍松断筋，煎完不柴不卷', 1),
+(@rid, 2, '中火煎制', '热锅少油，中小火每面煎 3 分钟至金黄。', '火别大，外焦里生是常见失败', 2),
+(@rid, 3, '洋葱同煎', '利用余油把洋葱圈煎香，撒在鸡胸上即可。', '煎完静置 2 分钟再切，肉汁不流失', 3);
+
+-- ---------------------------------------------------------------- 12
+INSERT INTO t_recipe (name, cuisine, difficulty, taste, cook_time, description, servings, source, status, calories, protein, fat, carbs)
+VALUES ('家常蛋炒饭', '家常菜', '简单', '咸香', 12,
+        '隔夜米饭粒粒分明，鸡蛋裹住米粒，加胡萝卜丁配色，一人食首选。', 1, '人工', '已上线', 428, 15.6, 16.8, 54.2);
+SET @rid = LAST_INSERT_ID();
+INSERT INTO t_recipe_ingredient (recipe_id, ingredient_id, name, amount, unit, is_main, is_required, sort) VALUES
+(@rid, (SELECT id FROM t_ingredient WHERE name = '大米' LIMIT 1),   '大米',   '1', '碗', 1, 1, 1),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '鸡蛋' LIMIT 1),   '鸡蛋',   '2', '个', 1, 1, 2),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '胡萝卜' LIMIT 1), '胡萝卜', '半', '根', 0, 0, 3),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '葱花' LIMIT 1),   '葱花',   '少许', NULL, 0, 0, 4),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '食用油' LIMIT 1), '食用油', '2', '勺', 0, 1, 5),
+(@rid, (SELECT id FROM t_ingredient WHERE name = '盐' LIMIT 1),     '盐',     '2', '克', 0, 1, 6);
+INSERT INTO t_recipe_step (recipe_id, step_no, title, description, tips, sort) VALUES
+(@rid, 1, '米饭打散', '隔夜米饭用手抓散，胡萝卜切小丁。', '新煮的饭水分多，炒不散', 1),
+(@rid, 2, '炒蛋', '鸡蛋打散加盐，热油下锅快速划散至刚凝固盛出。', '蛋炒到七成熟就盛出，回锅才嫩', 2),
+(@rid, 3, '炒饭', '下胡萝卜丁炒香，倒入米饭中大火翻炒到粒粒分明。', '用铲背压散饭团，别用铲刃剁', 3),
+(@rid, 4, '合炒调味', '倒回鸡蛋，加盐和葱花翻炒均匀出锅。', '葱花最后放，香气才冲', 4);
+
+-- ---------------------------------------------------------------- 校验
+SELECT COUNT(*) AS 在线菜谱数 FROM t_recipe WHERE status = '已上线';
+SELECT '豆腐' AS 食材, COUNT(DISTINCT recipe_id) AS 覆盖菜谱数 FROM t_recipe_ingredient WHERE name = '豆腐'
+UNION ALL SELECT '胡萝卜', COUNT(DISTINCT recipe_id) FROM t_recipe_ingredient WHERE name = '胡萝卜'
+UNION ALL SELECT '五花肉', COUNT(DISTINCT recipe_id) FROM t_recipe_ingredient WHERE name = '五花肉'
+UNION ALL SELECT '洋葱',   COUNT(DISTINCT recipe_id) FROM t_recipe_ingredient WHERE name = '洋葱';
+
+-- =====================================================================
+-- 补充商家在售商品（2026-10-27）
+-- 背景：t_merchant_product 里「已通过」的只有 6 种调味料，
+--       番茄/鸡蛋/豆腐/五花肉/胡萝卜 等生鲜全是「待审核」，
+--       导致菜谱「一键下单」生成的订单里大部分食材价格为 0，看着像免费。
+-- 本脚本为两家在营生鲜店补充已上架商品，保留原有待审核数据用于后台审核演示。
+-- 可重复执行（按 merchant_id + name 去重）。
+-- =====================================================================
+
+
+
+-- 邻里鲜蔬铺（merchant 1）
+INSERT INTO t_merchant_product (merchant_id, ingredient_id, name, price, sell_unit, stock, audit_status, status)
+SELECT 1, i.id, t.name, t.price, t.unit, t.stock, '已通过', 1
+FROM (
+  SELECT '豆腐'   AS name, 3.80  AS price, '1 块(400g)' AS unit, 120 AS stock UNION ALL
+  SELECT '胡萝卜', 2.60, '500g', 150 UNION ALL
+  SELECT '五花肉', 18.00, '500g', 60  UNION ALL
+  SELECT '生抽',   9.90, '1 瓶(500ml)', 80 UNION ALL
+  SELECT '盐',     2.50, '1 袋(400g)', 200 UNION ALL
+  SELECT '牛腩',   42.00, '500g', 30  UNION ALL
+  SELECT '鸡胸肉', 15.00, '500g', 50  UNION ALL
+  SELECT '大米',   25.00, '5kg',  70  UNION ALL
+  SELECT '莲藕',   6.50, '500g', 40
+) t
+JOIN t_ingredient i ON i.name = t.name
+WHERE NOT EXISTS (
+  SELECT 1 FROM t_merchant_product p WHERE p.merchant_id = 1 AND p.name = t.name
+);
+
+-- 家门口菜场（merchant 3），价格略低，便于演示多商家比价
+INSERT INTO t_merchant_product (merchant_id, ingredient_id, name, price, sell_unit, stock, audit_status, status)
+SELECT 3, i.id, t.name, t.price, t.unit, t.stock, '已通过', 1
+FROM (
+  SELECT '豆腐'   AS name, 3.50  AS price, '1 块(400g)' AS unit, 100 AS stock UNION ALL
+  SELECT '胡萝卜', 2.40, '500g', 130 UNION ALL
+  SELECT '五花肉', 17.50, '500g', 50  UNION ALL
+  SELECT '生抽',   9.50, '1 瓶(500ml)', 70 UNION ALL
+  SELECT '盐',     2.30, '1 袋(400g)', 180 UNION ALL
+  SELECT '青椒',   3.00, '500g', 90  UNION ALL
+  SELECT '番茄',   4.20, '500g', 90  UNION ALL
+  SELECT '鸡蛋',   7.90, '1 盒(10枚)', 60 UNION ALL
+  SELECT '土豆',   2.60, '1kg',  110 UNION ALL
+  SELECT '洋葱',   2.80, '500g', 80
+) t
+JOIN t_ingredient i ON i.name = t.name
+WHERE NOT EXISTS (
+  SELECT 1 FROM t_merchant_product p WHERE p.merchant_id = 3 AND p.name = t.name
+);
+
+SELECT audit_status, COUNT(*) AS 商品数 FROM t_merchant_product GROUP BY audit_status;

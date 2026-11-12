@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>04 菜谱详情 V2</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  .page{height:1780px;display:flex;flex-direction:column}
+  main{flex:1;max-width:1296px;margin:0 auto;padding:0 72px;width:100%}
+  .crumb{color:var(--text3);font-size:13px;padding:18px 0 16px}
+  .crumb b{color:var(--text);font-weight:600}
+  .logo-mark{width:28px;height:28px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+  h1,h2,h3{margin:0}
+
+  /* 头部 */
+  .head{display:grid;grid-template-columns:470px 1fr;gap:40px;align-items:center}
+  .head .big{height:310px;border-radius:14px}
+  .head .badges{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2)}
+  .head h1{font-size:30px;font-weight:700;margin:14px 0 12px}
+  .head .desc{color:var(--text2);font-size:14px;margin:0 0 22px}
+  .meta{display:flex;gap:38px;margin-bottom:24px}
+  .meta .it .k{color:var(--text3);font-size:12px}
+  .meta .it .v{font-size:15px;font-weight:600;margin-top:4px}
+  .head .acts{display:flex;gap:12px}
+
+  /* 两栏 */
+  .cols{display:grid;grid-template-columns:1fr 372px;gap:32px;margin-top:36px;align-items:start}
+  .stack{display:flex;flex-direction:column;gap:24px}
+  .blk{background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:22px 24px}
+  .blk .bh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .blk .bh h2{font-size:18px;font-weight:700}
+  .blk .bh .r{color:var(--text3);font-size:12px}
+
+  /* 所需食材 */
+  .ing{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #F0F3EE;font-size:14px}
+  .ing:last-child{border-bottom:none}
+  .ing .nm{width:150px}
+  .ing .am{color:var(--text2);flex:1}
+  .ing .st{display:flex;align-items:center;gap:8px;font-size:12px}
+
+  /* 食材替代 */
+  .alt{background:#EDF5EE;border-radius:16px;padding:20px 22px}
+  .alt .t{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:14px}
+  .alt .t .lack{background:var(--danger-bg);color:var(--danger);font-size:12px;border-radius:6px;padding:2px 8px;font-weight:600}
+  .alt .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .alt .c{background:#fff;border-radius:12px;padding:14px 16px}
+  .alt .c .nm{font-weight:700;font-size:14px;margin-bottom:8px}
+  .alt .c .ln{color:var(--text2);font-size:12px;margin-bottom:6px}
+  .alt .c .ln b{color:var(--text);font-weight:600}
+
+  /* 分步教学 */
+  .teach{display:grid;grid-template-columns:190px 1fr;gap:20px}
+  .slist{display:flex;flex-direction:column;gap:6px}
+  .slist .s{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:13px;color:var(--text2)}
+  .slist .s .n{width:20px;height:20px;border-radius:50%;background:#EDF1EC;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);flex:none}
+  .slist .s.on{background:#EDF5EE;color:var(--chip-text);font-weight:600}
+  .slist .s.on .n{background:var(--primary);color:#fff}
+  .stage .pic{height:210px;border-radius:12px;margin-bottom:16px}
+  .stage h3{font-size:16px;font-weight:700;margin-bottom:10px}
+  .stage p{color:var(--text2);font-size:13px;margin:0 0 14px}
+  .tip{background:var(--amber-bg);border-radius:10px;padding:12px 14px;font-size:13px;color:#8A6A1C}
+  .tip b{color:#6E5312}
+  .stage .ctrl{display:flex;justify-content:flex-end;gap:12px;margin-top:16px}
+
+  /* 营养 */
+  .nut{display:flex;flex-direction:column;gap:14px}
+  .nut .r{display:grid;grid-template-columns:64px 1fr 88px;align-items:center;gap:14px;font-size:13px}
+  .nut .bar{height:9px;border-radius:999px;background:#EFF3EE;overflow:hidden}
+  .nut .bar i{display:block;height:100%;border-radius:999px}
+  .nut .v{text-align:right;color:var(--text2)}
+
+  /* 右栏 */
+  .side{display:flex;flex-direction:column;gap:20px}
+  .side .sub{color:var(--text2);font-size:12px;margin:6px 0 12px}
+  .short{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:8px 0;color:var(--text2)}
+  .stars{color:#F0C24B;font-size:20px;letter-spacing:3px;margin:10px 0}
+  .rate-tag{display:inline-block;background:var(--chip-bg);color:var(--chip-text);font-size:12px;border-radius:999px;padding:3px 10px;margin-bottom:10px}
+  .ta{width:100%;height:76px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;outline:none;resize:none}
+  .sim{display:flex;align-items:center;gap:12px;padding:10px 0}
+  .sim .p{width:58px;height:58px;border-radius:10px;flex:none}
+  .sim .t{font-size:13px;font-weight:600}
+  .sim .m{color:var(--text3);font-size:12px}
+</style></head>
+<body>
+<div class="page">
+  <div class="nav">
+    <div class="nav-left">
+      <div class="nav-logo"><span class="logo-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 4c0 8-4 13-12 14 0-8 4-13 12-14z" fill="#fff"/><path d="M4 20c2-6 5-9 10-11" stroke="#1F4E3B" stroke-width="1.8" stroke-linecap="round"/></svg></span>材神食验室</div>
+      <div class="nav-menu"><a>首页</a><a class="active">菜谱推荐</a><a>购物清单</a><a>会员</a><a>个人中心</a></div>
+    </div>
+    <div class="nav-right"><span class="quota">今日免费 2/5 次</span><button class="btn btn-ghost btn-sm">我的</button></div>
+  </div>
+
+  <main>
+    <div class="crumb">首页 / 菜谱推荐 / <b>番茄炒蛋</b></div>
+
+    <!-- 头部 -->
+    <div class="head">
+      <div class="big img-ph">菜品大图</div>
+      <div>
+        <div class="badges"><span class="tag-green">匹配 100%</span><span class="tag-green" style="background:#EDF1EC;color:var(--text2)">匹配度 100%</span><span>家常菜</span><span>清淡</span></div>
+        <h1>番茄炒蛋</h1>
+        <p class="desc">酸甜开胃的国民家常菜，用手边的番茄和鸡蛋 15 分钟搞定。</p>
+        <div class="meta">
+          <div class="it"><div class="k">耗时</div><div class="v">15 分钟</div></div>
+          <div class="it"><div class="k">难度</div><div class="v">简单</div></div>
+          <div class="it"><div class="k">分量</div><div class="v">2 人份</div></div>
+          <div class="it"><div class="k">适合</div><div class="v">无葱口冲突</div></div>
+        </div>
+        <div class="acts">
+          <button class="btn btn-primary">开始烹饪</button>
+          <button class="btn btn-outline">♡ 收藏</button>
+          <button class="btn btn-outline">加入购物清单</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <!-- 左栏 -->
+      <div class="stack">
+        <div class="blk">
+          <div class="bh"><h2>所需食材</h2><span class="r">按 2 人份</span></div>
+          <div class="ing"><span class="nm">番茄</span><span class="am">2 个</span><span class="st tag-green">已有</span></div>
+          <div class="ing"><span class="nm">鸡蛋</span><span class="am">3 个</span><span class="st tag-green">已有</span></div>
+          <div class="ing"><span class="nm">盐</span><span class="am">少许</span><span class="st tag-green">已有</span></div>
+          <div class="ing"><span class="nm">食用油</span><span class="am">1 汤匙</span><span class="st"><span class="tag-red">缺</span><a style="color:var(--primary)">查看替代</a></span></div>
+          <div class="ing"><span class="nm">白糖</span><span class="am">1 茶匙</span><span class="st"><span class="tag-red">缺</span><a style="color:var(--primary)">查看替代</a></span></div>
+          <div class="ing"><span class="nm">葱花</span><span class="am">少许</span><span class="st"><span class="tag-red">缺</span><a style="color:var(--primary)">查看替代</a></span></div>
+        </div>
+
+        <div class="alt">
+          <div class="t"><span class="lack">缺</span>少白糖？可以这样选</div>
+          <div class="cards">
+            <div class="c">
+              <div class="nm">蜂蜜</div>
+              <div class="ln">替代比例：<b>白糖 1 茶匙 → 蜂蜜 半茶匙</b></div>
+              <div class="ln">口味衔接：甜味更柔和，略带蜜香。</div>
+            </div>
+            <div class="c">
+              <div class="nm">番茄酱</div>
+              <div class="ln">替代比例：<b>白糖 1 茶匙 → 番茄酱 1 汤匙</b></div>
+              <div class="ln">口味衔接：酸甜更明显，成品颜色更深红。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="blk">
+          <div class="bh"><h2>分步教学</h2><span class="r">第 3 步 / 共 5 步</span></div>
+          <div class="teach">
+            <div class="slist">
+              <div class="s"><span class="n">1</span>备料</div>
+              <div class="s"><span class="n">2</span>打蛋</div>
+              <div class="s on"><span class="n">3</span>炒鸡蛋</div>
+              <div class="s"><span class="n">4</span>炒番茄</div>
+              <div class="s"><span class="n">5</span>合炒调味</div>
+            </div>
+            <div class="stage">
+              <div class="pic img-ph">步骤示意图</div>
+              <h3>步骤 3 · 炒鸡蛋</h3>
+              <p>锅中倒油烧至七成热，倒入蛋液，蛋液边缘凝固后用锅铲轻推，炒到六七成熟、呈大块即可盛出备用。</p>
+              <div class="tip"><b>关键提示：</b>蛋不要炒太老，后面还会回锅，六七成熟最嫩。</div>
+              <div class="ctrl"><button class="btn btn-ghost">上一步</button><button class="btn btn-primary">下一步</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="blk">
+          <div class="bh"><h2>营养信息</h2><span class="r">每份 · 示例数据</span></div>
+          <div class="nut">
+            <div class="r"><span>热量</span><span class="bar"><i style="width:78%;background:#E2703A"></i></span><span class="v">约 210 kcal</span></div>
+            <div class="r"><span>蛋白质</span><span class="bar"><i style="width:62%;background:#5C8D5A"></i></span><span class="v">约 14 g</span></div>
+            <div class="r"><span>脂肪</span><span class="bar"><i style="width:70%;background:#E2B33A"></i></span><span class="v">约 15 g</span></div>
+            <div class="r"><span>碳水</span><span class="bar"><i style="width:36%;background:#3E9A6B"></i></span><span class="v">约 6 g</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右栏 -->
+      <div class="side">
+        <div class="blk">
+          <div class="bh"><h2>还缺 3 样食材</h2></div>
+          <div class="sub">一键加入购物清单，再比比价下单。</div>
+          <div class="short"><span>食用油</span><span>1 汤匙</span></div>
+          <div class="short" style="border-top:1px solid #F0F3EE"><span>白糖</span><span>1 茶匙</span></div>
+          <div class="short" style="border-top:1px solid #F0F3EE"><span>葱花</span><span>少许</span></div>
+          <button class="btn btn-primary btn-block" style="margin-top:14px">加入清单比价</button>
+        </div>
+
+        <div class="blk">
+          <div class="bh"><h2>做完了？说说感受</h2></div>
+          <div class="stars">★★★★☆</div>
+          <span class="rate-tag">最后成品（选填）</span>
+          <textarea class="ta" placeholder="咸淡、火候、会不会再做…"></textarea>
+          <button class="btn btn-primary btn-block" style="margin-top:12px">提交评价</button>
+        </div>
+
+        <div class="blk">
+          <div class="bh"><h2>相似菜谱</h2></div>
+          <div class="sim"><div class="p img-ph"></div><div><div class="t">番茄炒蛋</div><div class="m">12 分钟 · 简单</div></div></div>
+          <div class="sim" style="border-top:1px solid #F0F3EE"><div class="p img-ph"></div><div><div class="t">番茄蛋花汤</div><div class="m">15 分钟 · 简单</div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="footer">
+    <div>©材神食验室 · 让每一份食材都不被辜负</div>
+    <div class="links"><a>意见反馈</a><a>会员说明</a></div>
+  </div>
+</div>
+</body></html>

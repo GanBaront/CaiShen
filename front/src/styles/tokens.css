@@ -1,0 +1,22 @@
+/* 材神食验室 —— 设计令牌（移植自 design/_mockup_v2/base.css） */
+:root {
+  --primary: #1f4e3b;
+  --primary-hover: #193f2f;
+  --bg: #f3f6f1;
+  --surface: #ffffff;
+  --cream: #faf8f3;
+  --text: #1f2a24;
+  --text2: #6b7a70;
+  --text3: #9aa79e;
+  --border: #e3e8e2;
+  --chip-bg: #e3efe5;
+  --chip-text: #2e6b4a;
+  --danger: #d9503f;
+  --danger-bg: #fbece8;
+  --amber: #b5852a;
+  --amber-bg: #f7ebc8;
+  --success: #3e9a6b;
+  --ph: #dcead9;
+  --card-radius: 16px;
+  --shadow: 0 2px 12px rgba(31, 78, 59, 0.06);
+}

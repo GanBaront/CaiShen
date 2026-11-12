@@ -1,0 +1,435 @@
+/* 材神食验室 · 运营后台布局与页面样式（还原 08 后台管理设计图） */
+
+/* ---------- 骨架 ---------- */
+.admin-shell {
+  min-height: 100vh;
+}
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 224px;
+  background: var(--primary);
+  color: #fff;
+  padding: 16px 14px 28px;
+  overflow-y: auto;
+}
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 22px;
+}
+.sidebar .brand .mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.sidebar .brand .name {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.2;
+}
+.sidebar .brand .sub {
+  font-size: 12px;
+  color: #b9d2c4;
+  line-height: 1.2;
+}
+.nav-group-title {
+  font-size: 12px;
+  color: #9dbaa9;
+  padding: 16px 10px 6px;
+}
+.nav-item {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #dbe9e0;
+  font-size: 14px;
+  margin-bottom: 2px;
+  cursor: pointer;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.nav-item.active {
+  background: #fff;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.main {
+  margin-left: 224px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.topbar {
+  height: 64px;
+  background: #fff;
+  border-bottom: 1px solid #eef1ec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.topbar-note {
+  color: var(--text3);
+  font-size: 13px;
+}
+.range-switch {
+  display: flex;
+  gap: 8px;
+}
+.range-switch button {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.range-switch button.on {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.content {
+  padding: 22px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.panel {
+  background: var(--surface);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+}
+.panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ---------- 统计卡 ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.stat-card {
+  background: var(--surface);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+}
+.stat-card .label {
+  color: var(--text2);
+  font-size: 13px;
+}
+.stat-card .value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.stat-card .delta {
+  font-size: 12px;
+  color: var(--text2);
+}
+.delta-up {
+  color: var(--success);
+  margin-left: 4px;
+}
+.delta-down {
+  color: var(--danger);
+  margin-left: 4px;
+}
+
+/* ---------- 趋势图 + 待处理审核 ---------- */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1.85fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.chart-head .unit {
+  color: var(--text3);
+  font-size: 13px;
+}
+.line-chart {
+  width: 100%;
+  height: 230px;
+  display: block;
+}
+.pending-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.pending-row:last-child {
+  border-bottom: none;
+}
+.pending-row .right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pending-count {
+  color: var(--danger);
+  font-weight: 700;
+}
+.pending-action {
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* ---------- 工具条 / 表格 ---------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.toolbar .spacer {
+  flex: 1;
+}
+.toolbar .input {
+  width: 200px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text2);
+  padding: 10px 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  padding: 14px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  vertical-align: middle;
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+.table td.muted {
+  color: var(--text2);
+}
+.table .row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.col-actions {
+  text-align: right;
+}
+.empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+}
+.notice {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ---------- 弹窗 ---------- */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 42, 36, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 520px;
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 24px 26px;
+}
+.modal h3 {
+  margin: 0 0 18px;
+  font-size: 17px;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+/* ---------- 登录页 ---------- */
+.login {
+  display: flex;
+  min-height: 100vh;
+}
+.login .brand-side {
+  width: 50%;
+  background: var(--primary);
+  color: #fff;
+  padding: 48px 64px;
+  display: flex;
+  flex-direction: column;
+}
+.login .brand-side .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 17px;
+}
+.login .brand-side .logo .mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login .brand-side .mid {
+  margin-top: 160px;
+}
+.login .brand-side h1 {
+  font-size: 38px;
+  line-height: 1.28;
+  margin: 0 0 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.login .brand-side .sub {
+  color: #cfe0d6;
+  font-size: 15px;
+  margin: 0 0 32px;
+  max-width: 520px;
+}
+.login .brand-side .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.login .brand-side .tags span {
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  color: #e4efe8;
+}
+.login .brand-side .foot {
+  margin-top: auto;
+  color: #b9d2c4;
+  font-size: 13px;
+}
+.login .form-side {
+  width: 50%;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.login .form-card {
+  width: 392px;
+}
+.login .form-card h1 {
+  font-size: 26px;
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+.login .form-card .sub {
+  color: var(--text2);
+  font-size: 13px;
+  margin: 0 0 28px;
+}
+.login .err {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.login .hint {
+  color: var(--text3);
+  font-size: 12px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+}

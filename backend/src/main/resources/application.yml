@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: caishen-foodlab
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/caishen_food_lab?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+
+# 接口文档 (Knife4j / OpenAPI)
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+knife4j:
+  enable: true
+
+# 业务自定义配置（密钥一律使用环境变量覆盖，默认值留空/示例值，不入库不进仓库）
+caishen:
+  free-daily-limit: 5          # 每周免费生成次数（自然周）
+  member-month-price: 19       # 会员月费(元)
+  ai-single-price: 2.99        # 单次 AI 菜谱费用(元)
+  upload-dir: uploads          # 图片上传保存目录
+  upload-url-prefix: /uploads  # 图片可访问前缀
+  ai:
+    # ===== 文本模型（菜谱推荐排序 / AI 创作菜谱）=====
+    # OpenAI 兼容接口地址；默认 DeepSeek，换智谱/百炼/Moonshot/OpenAI 只需改这三项
+    base-url: ${AI_BASE_URL:https://api.deepseek.com/v1}
+    model: ${AI_MODEL:deepseek-chat}
+    # 密钥一律由环境变量注入：本地 start-all.bat 会从 ai-keys.bat 载入。
+    # 密钥优先级 环境变量 > 后台系统配置（不落库、不随源码包外发）
+    api-key: ${AI_API_KEY:}
+    # ===== 视觉模型（图片识别菜品 / 食材）=====
+    # DeepSeek 无视觉能力，图片识别单独走智谱 GLM-4V。
+    # vision-base-url / vision-api-key 留空时自动复用上面的文本配置（同一服务商只需配一套）
+    vision-base-url: ${AI_VISION_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
+    vision-model: ${AI_VISION_MODEL:glm-4v-flash}
+    vision-api-key: ${AI_VISION_API_KEY:}
+    # 图片入参格式：auto（按服务商自动判断）/ data-uri / raw-base64
+    vision-image-mode: ${AI_VISION_IMAGE_MODE:auto}
+    timeout-seconds: 60
+  jwt:
+    secret: ${JWT_SECRET:caishen-foodlab-local-dev-secret-key-please-change-2026}
+    expire-hours: 168
